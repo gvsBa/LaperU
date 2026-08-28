@@ -24,4 +24,4 @@ Kendala:
 - MySQL Server belum tersedia pada environment lokal saat setup, sehingga build dan pengujian API tanpa database sudah dilakukan, sedangkan pengujian database end-to-end menunggu instance MySQL aktif.
 - Beberapa detail flow masih dapat berubah mengikuti finalisasi SRS/SDD dan desain UI/UX.
 
-Dokumentasi: `[LINK GITHUB SETELAH REPOSITORY DIBUAT]`
+Dokumentasi: https://github.com/gvsBa/LaperU
