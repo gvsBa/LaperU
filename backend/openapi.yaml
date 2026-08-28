@@ -1,0 +1,341 @@
+openapi: 3.1.0
+info:
+  title: LaperU API
+  version: 0.1.0
+  description: REST API untuk Guest, Customer, UMKM, dan Admin LaperU.
+servers:
+  - url: http://localhost:3000/api/v1
+tags:
+  - { name: System }
+  - { name: Auth }
+  - { name: Guest }
+  - { name: Customer }
+  - { name: UMKM }
+  - { name: Admin }
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Memeriksa status API
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /health/database:
+    get:
+      tags: [System]
+      summary: Memeriksa koneksi MySQL
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '500': { $ref: '#/components/responses/Error' }
+  /auth/register/customer:
+    post:
+      tags: [Auth]
+      summary: Membuat akun Customer
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerRegistration' } } }
+      responses:
+        '201': { $ref: '#/components/responses/AuthSuccess' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /auth/register/umkm:
+    post:
+      tags: [Auth]
+      summary: Membuat akun dan draft pengajuan UMKM
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UmkmRegistration' } } }
+      responses:
+        '201': { $ref: '#/components/responses/AuthSuccess' }
+        '422': { $ref: '#/components/responses/Error' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login seluruh role
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Login' } } }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Merotasi refresh token
+      responses:
+        '200': { $ref: '#/components/responses/AuthSuccess' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Mencabut refresh token
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /auth/me:
+    get:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      summary: Mengambil profil akun aktif
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+  /warungs:
+    get:
+      tags: [Guest]
+      summary: Mencari dan memfilter warung
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: facility, in: query, schema: { type: string } }
+        - { name: payment, in: query, schema: { type: string } }
+        - { name: minPrice, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: maxPrice, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: minRating, in: query, schema: { type: number, minimum: 1, maximum: 5 } }
+        - { name: openNow, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 12, maximum: 50 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /warungs/{slug}:
+    get:
+      tags: [Guest]
+      summary: Detail warung, menu, jam, fasilitas, dan pembayaran
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /meta:
+    get:
+      tags: [Guest]
+      summary: Pilihan kategori, fasilitas, dan metode pembayaran
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /customer/favorites:
+    get:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat favorit
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /customer/favorites/{id}:
+    post:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Menambah favorit
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Menghapus favorit
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /customer/reviews:
+    post:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Membuat ulasan multidimensi
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /customer/reviews/{id}:
+    patch:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Mengubah ulasan sendiri
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Menghapus ulasan sendiri
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /customer/reports:
+    post:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Melaporkan ulasan atau informasi
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /umkm/application:
+    get:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat status pengajuan
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    patch:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Memperbarui draft atau revisi pengajuan
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/application/submit:
+    post:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengirim pengajuan ke Admin
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/warung:
+    get:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat profil warung sendiri
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    put:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Memperbarui profil warung
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/menus:
+    get:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat semua menu sendiri
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Menambah menu
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /umkm/menus/{id}:
+    patch:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengubah menu sendiri
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Menonaktifkan menu tanpa menghapus riwayat
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/operating-hours:
+    put:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengganti jadwal operasional tujuh hari
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/photos:
+    post:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Menyimpan URL foto warung atau menu
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Ringkasan jumlah pengguna, UMKM, warung aktif, dan laporan
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/applications:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Daftar dan filter pengajuan UMKM
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/applications/{id}:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Detail pengajuan UMKM
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/applications/{id}/decision:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menyetujui, meminta revisi, atau menolak pengajuan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/users/{id}/status:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Mengaktifkan atau menangguhkan akun
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/reports:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat laporan pengguna
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/reports/{id}:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menyelesaikan atau mengabaikan laporan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat riwayat tindakan Admin
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Slug: { name: slug, in: path, required: true, schema: { type: string } }
+  schemas:
+    CustomerRegistration:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName: { type: string, minLength: 2 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }
+    UmkmRegistration:
+      allOf:
+        - { $ref: '#/components/schemas/CustomerRegistration' }
+        - type: object
+          required: [businessName, ownerName, phone, address]
+          properties:
+            businessName: { type: string }
+            ownerName: { type: string }
+            phone: { type: string }
+            address: { type: string }
+    Login:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    Review:
+      type: object
+      required: [warungId, tasteRating, priceRating, portionRating, cleanlinessRating, comfortRating, speedRating]
+      properties:
+        warungId: { type: string, format: uuid }
+        tasteRating: { type: integer, minimum: 1, maximum: 5 }
+        priceRating: { type: integer, minimum: 1, maximum: 5 }
+        portionRating: { type: integer, minimum: 1, maximum: 5 }
+        cleanlinessRating: { type: integer, minimum: 1, maximum: 5 }
+        comfortRating: { type: integer, minimum: 1, maximum: 5 }
+        speedRating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 1500 }
+    ApiError:
+      type: object
+      required: [success, code, message]
+      properties:
+        success: { type: boolean, const: false }
+        code: { type: string }
+        message: { type: string }
+  responses:
+    Success:
+      description: Permintaan berhasil
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: { success: { type: boolean, const: true }, data: {} }
+    AuthSuccess:
+      description: Autentikasi berhasil dan refresh cookie HTTP-only dikirim
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, const: true }
+              data:
+                type: object
+                properties: { accessToken: { type: string }, user: { type: object } }
+    Error:
+      description: Permintaan gagal
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
