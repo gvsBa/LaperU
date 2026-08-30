@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --pretty false",
     "typecheck:all": "npm run typecheck && npm run typecheck --workspace @laperu/backend",
     "lint": "eslint .",
+    "lint:api": "redocly lint backend/openapi.yaml",
     "test:backend": "npm run test --workspace @laperu/backend",
     "preview": "vite preview"
   },
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@redocly/cli": "^2.49.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.1.1",

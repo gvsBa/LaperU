@@ -1,18 +1,19 @@
 import { z } from 'zod'
+import { safeText } from '../../utils/safe-text.js'
 
 const password = z.string().min(8).max(72).regex(/[A-Za-z]/, 'Kata sandi harus memiliki huruf.').regex(/\d/, 'Kata sandi harus memiliki angka.')
 
 export const customerRegistrationSchema = z.object({
   email: z.email().max(190).transform((value) => value.trim().toLowerCase()),
-  fullName: z.string().trim().min(2).max(120),
+  fullName: safeText({ min: 2, max: 120 }),
   password,
 })
 
 export const umkmRegistrationSchema = customerRegistrationSchema.extend({
-  address: z.string().trim().min(8).max(500),
-  businessName: z.string().trim().min(2).max(160),
-  ownerName: z.string().trim().min(2).max(120),
-  phone: z.string().trim().min(8).max(30),
+  address: safeText({ min: 8, max: 500 }),
+  businessName: safeText({ min: 2, max: 160 }),
+  ownerName: safeText({ min: 2, max: 120 }),
+  phone: safeText({ min: 8, max: 30 }),
 })
 
 export const loginSchema = z.object({

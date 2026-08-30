@@ -37,3 +37,11 @@
 - Response API p95 untuk baca data: `≤ 500 ms`.
 - Response API p95 untuk operasi tulis: `≤ 800 ms`.
 - Semua daftar menggunakan pagination dan foto menggunakan lazy loading pada tahap implementasi katalog.
+
+**Kriteria penerimaan SRS (batas wajib):**
+
+- Waktu muat halaman maksimal `3 detik`.
+- Waktu respons API maksimal `2 detik`.
+- Sistem tidak crash saat diuji dengan `50 pengguna bersamaan`.
+
+Target internal di atas sengaja lebih ketat daripada batas SRS. QA menyatakan gagal apabila melewati batas SRS, sedangkan nilai di antara target internal dan batas SRS dicatat sebagai lulus dengan catatan optimasi.

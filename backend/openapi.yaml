@@ -5,13 +5,14 @@ info:
   description: REST API untuk Guest, Customer, UMKM, dan Admin LaperU.
 servers:
   - url: http://localhost:3000/api/v1
+security: []
 tags:
-  - { name: System }
-  - { name: Auth }
-  - { name: Guest }
-  - { name: Customer }
-  - { name: UMKM }
-  - { name: Admin }
+  - { name: System, description: Status layanan dan database }
+  - { name: Auth, description: 'Registrasi, login, refresh session, dan profil akun' }
+  - { name: Guest, description: Penemuan dan detail warung tanpa login }
+  - { name: Customer, description: 'Favorit, ulasan, dan laporan Customer' }
+  - { name: UMKM, description: Pengajuan serta pengelolaan warung oleh UMKM }
+  - { name: Admin, description: 'Verifikasi, moderasi, referensi, dan audit Admin' }
 paths:
   /health:
     get:
@@ -89,6 +90,9 @@ paths:
         - { name: maxPrice, in: query, schema: { type: integer, minimum: 0 } }
         - { name: minRating, in: query, schema: { type: number, minimum: 1, maximum: 5 } }
         - { name: openNow, in: query, schema: { type: boolean } }
+        - { name: latitude, in: query, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: longitude, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: radiusKm, in: query, description: Membutuhkan latitude dan longitude, schema: { type: number, exclusiveMinimum: 0, maximum: 50 } }
         - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 12, maximum: 50 } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
@@ -125,6 +129,14 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Id' }]
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /customer/reviews:
+    get:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat riwayat ulasan sendiri
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, minimum: 1, maximum: 100 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
     post:
       tags: [Customer]
       security: [{ bearerAuth: [] }]
@@ -139,6 +151,9 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Mengubah ulasan sendiri
       parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
     delete:
       tags: [Customer]
@@ -151,6 +166,9 @@ paths:
       tags: [Customer]
       security: [{ bearerAuth: [] }]
       summary: Melaporkan ulasan atau informasi
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReportCreate' } } }
       responses: { '201': { $ref: '#/components/responses/Success' } }
   /umkm/application:
     get:
@@ -162,6 +180,9 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Memperbarui draft atau revisi pengajuan
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /umkm/application/submit:
     post:
@@ -179,6 +200,9 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Memperbarui profil warung
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WarungUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /umkm/menus:
     get:
@@ -190,6 +214,9 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Menambah menu
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MenuCreate' } } }
       responses: { '201': { $ref: '#/components/responses/Success' } }
   /umkm/menus/{id}:
     patch:
@@ -197,6 +224,9 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Mengubah menu sendiri
       parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MenuUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
     delete:
       tags: [UMKM]
@@ -209,13 +239,159 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Mengganti jadwal operasional tujuh hari
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OperatingHours' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/facilities:
+    put:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengganti daftar fasilitas warung
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RelationIds' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/payment-methods:
+    put:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengganti daftar metode pembayaran warung
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RelationIds' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/reviews:
+    get:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat ulasan untuk warung sendiri
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/reviews/{id}/reply:
+    put:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Membuat atau memperbarui balasan ulasan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reply]
+              properties: { reply: { type: string, minLength: 1, maxLength: 1500 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/statistics:
+    get:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Statistik kunjungan profil, favorit, rating, dan ulasan
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /umkm/uploads/images:
+    post:
+      tags: [UMKM]
+      security: [{ bearerAuth: [] }]
+      summary: Mengunggah satu gambar JPG, JPEG, atau PNG maksimal 2 MB
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties: { image: { type: string, format: binary } }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '413': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
   /umkm/photos:
     post:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Menyimpan URL foto warung atau menu
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PhotoCreate' } } }
       responses: { '201': { $ref: '#/components/responses/Success' } }
+  /admin/users:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat dan memfilter akun Customer atau UMKM
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/warungs:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat daftar warung
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/warungs/{id}:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Mengubah data warung
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AdminWarungUpdate' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menonaktifkan warung tanpa menghapus riwayat
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/categories:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Membuat kategori makanan
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReferenceData' } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /admin/categories/{id}:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Mengubah kategori makanan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReferenceData' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menghapus kategori makanan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/facilities:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Membuat fasilitas
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReferenceData' } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /admin/facilities/{id}:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Mengubah fasilitas
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReferenceData' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menghapus fasilitas
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
   /admin/dashboard:
     get:
       tags: [Admin]
@@ -241,6 +417,9 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Menyetujui, meminta revisi, atau menolak pengajuan
       parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationDecision' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /admin/users/{id}/status:
     patch:
@@ -248,6 +427,9 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Mengaktifkan atau menangguhkan akun
       parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserStatusUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /admin/reports:
     get:
@@ -261,6 +443,19 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Menyelesaikan atau mengabaikan laporan
       parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReportStatusUpdate' } } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/reviews/{id}/status:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Menampilkan atau menyembunyikan ulasan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReviewModeration' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /admin/audit-logs:
     get:
@@ -310,6 +505,133 @@ components:
         comfortRating: { type: integer, minimum: 1, maximum: 5 }
         speedRating: { type: integer, minimum: 1, maximum: 5 }
         comment: { type: string, maxLength: 1500 }
+    RelationIds:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    ReviewUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        tasteRating: { type: integer, minimum: 1, maximum: 5 }
+        priceRating: { type: integer, minimum: 1, maximum: 5 }
+        portionRating: { type: integer, minimum: 1, maximum: 5 }
+        cleanlinessRating: { type: integer, minimum: 1, maximum: 5 }
+        comfortRating: { type: integer, minimum: 1, maximum: 5 }
+        speedRating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 1500 }
+    ReportCreate:
+      type: object
+      required: [targetType, targetId, reason]
+      properties:
+        targetType: { type: string, enum: [INFORMATION, REVIEW, WARUNG] }
+        targetId: { type: string, format: uuid }
+        reason: { type: string, minLength: 3, maxLength: 160 }
+        detail: { type: string, maxLength: 1200 }
+    ApplicationUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        address: { type: string, minLength: 8, maxLength: 500 }
+        businessName: { type: string, minLength: 2, maxLength: 160 }
+        businessType: { type: string, maxLength: 100 }
+        ownerName: { type: string, minLength: 2, maxLength: 120 }
+        phone: { type: string, minLength: 8, maxLength: 30 }
+        storefrontPhotoUrl: { type: string, format: uri, maxLength: 1000 }
+    WarungUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        address: { type: string, minLength: 8, maxLength: 500 }
+        categoryId: { type: [string, 'null'], format: uuid }
+        description: { type: string, maxLength: 2000 }
+        latitude: { type: [number, 'null'], minimum: -90, maximum: 90 }
+        longitude: { type: [number, 'null'], minimum: -180, maximum: 180 }
+        name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: [string, 'null'], maxLength: 30 }
+        priceMin: { type: [integer, 'null'], minimum: 0 }
+        priceMax: { type: [integer, 'null'], minimum: 0 }
+        statusOverride: { type: string, enum: [AUTO, CLOSED, OPEN] }
+    MenuCreate:
+      type: object
+      required: [name, price]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        description: { type: string, maxLength: 1000 }
+        price: { type: integer, minimum: 0 }
+        isAvailable: { type: boolean, default: true }
+        photoUrl: { type: string, format: uri, maxLength: 1000 }
+    MenuUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        description: { type: string, maxLength: 1000 }
+        price: { type: integer, minimum: 0 }
+        isAvailable: { type: boolean }
+        photoUrl: { type: string, format: uri, maxLength: 1000 }
+        isActive: { type: boolean }
+    OperatingHours:
+      type: object
+      required: [hours]
+      properties:
+        hours:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            type: object
+            required: [dayOfWeek, openTime, closeTime, isClosed]
+            properties:
+              dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+              openTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
+              closeTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
+              isClosed: { type: boolean }
+    PhotoCreate:
+      type: object
+      required: [type, url]
+      properties:
+        type: { type: string, enum: [MENU, STOREFRONT, VENUE] }
+        url: { type: string, format: uri, maxLength: 1000 }
+        altText: { type: string, maxLength: 255 }
+    AdminWarungUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        address: { type: string, minLength: 8, maxLength: 500 }
+        categoryId: { type: [string, 'null'], format: uuid }
+        description: { type: string, maxLength: 2000 }
+        isActive: { type: boolean }
+        name: { type: string, minLength: 2, maxLength: 160 }
+    ReferenceData:
+      type: object
+      required: [name]
+      properties: { name: { type: string, minLength: 2, maxLength: 100 } }
+    ApplicationDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVED, REJECTED, REVISION] }
+        note: { type: string, maxLength: 1000 }
+    UserStatusUpdate:
+      type: object
+      required: [status]
+      properties: { status: { type: string, enum: [ACTIVE, SUSPENDED] } }
+    ReportStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [DISMISSED, RESOLVED] }
+        adminNote: { type: string, maxLength: 1000 }
+    ReviewModeration:
+      type: object
+      required: [status]
+      properties: { status: { type: string, enum: [HIDDEN, VISIBLE] } }
     ApiError:
       type: object
       required: [success, code, message]

@@ -47,12 +47,21 @@ npm run dev:all
 - Petunjuk Backend: `backend/README.md`
 - Tema dan target performa: `docs/THEME_AND_PERFORMANCE.md`
 - Weekly report Bagus: `docs/WEEKLY_REPORT.md`
+- Traceability SRS ke Backend: `docs/SRS_BACKEND_TRACEABILITY.md`
+- Handoff dan data uji QA: `docs/QA_HANDOFF.md`, `backend/test-data/`
 
 ## Pemeriksaan kualitas
 
 ```powershell
 npm run typecheck:all
 npm run lint
+npm run lint:api
 npm run test:backend
 npm run build:all
+```
+
+Untuk membuat sampel gambar valid, tidak valid, dan oversize bagi QA:
+
+```powershell
+npm run qa:generate-images --workspace @laperu/backend
 ```

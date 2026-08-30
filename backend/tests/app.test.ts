@@ -20,4 +20,12 @@ describe('LaperU API', () => {
     expect(response.status).toBe(404)
     expect(response.body).toMatchObject({ success: false, code: 'NOT_FOUND' })
   })
+
+  it('melindungi endpoint unggah gambar dari Guest', async () => {
+    const response = await request(app)
+      .post('/api/v1/umkm/uploads/images')
+      .attach('image', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 'sample.png')
+    expect(response.status).toBe(401)
+    expect(response.body).toMatchObject({ success: false, code: 'UNAUTHENTICATED' })
+  })
 })

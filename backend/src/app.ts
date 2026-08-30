@@ -12,6 +12,7 @@ import { authRouter } from './modules/auth/auth.routes.js'
 import { customerRouter } from './modules/customer/customer.routes.js'
 import { metaRouter } from './modules/meta/meta.routes.js'
 import { umkmRouter } from './modules/umkm/umkm.routes.js'
+import { uploadDirectory } from './modules/media/image-upload.js'
 import { publicWarungRouter } from './modules/warungs/warung.routes.js'
 import { errorHandler, notFound } from './middleware/error-handler.js'
 import { asyncHandler } from './utils/async-handler.js'
@@ -22,10 +23,11 @@ const allowedOrigins = env.FRONTEND_ORIGIN.split(',').map((origin) => origin.tri
 
 app.disable('x-powered-by')
 app.use(pinoHttp({ logger, autoLogging: env.NODE_ENV !== 'test' }))
-app.use(helmet())
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(cors({ credentials: true, origin: allowedOrigins }))
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
+app.use('/uploads', express.static(uploadDirectory, { immutable: true, maxAge: '1y' }))
 
 app.get('/api/v1/health', (_req, res) => {
   sendOk(res, { environment: env.NODE_ENV, service: 'laperu-api', status: 'up', timestamp: new Date().toISOString() })

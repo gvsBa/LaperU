@@ -7,7 +7,19 @@ import { validate } from '../../middleware/validate.js'
 import { ApiError } from '../../utils/api-error.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { sendOk } from '../../utils/response.js'
-import { applicationListSchema, decisionSchema, idParamSchema, reportStatusSchema, userStatusSchema } from './admin.schemas.js'
+import {
+  adminWarungListSchema,
+  adminWarungUpdateSchema,
+  applicationListSchema,
+  decisionSchema,
+  idParamSchema,
+  referenceDataSchema,
+  referenceDataUpdateSchema,
+  reportStatusSchema,
+  reviewModerationSchema,
+  userListSchema,
+  userStatusSchema,
+} from './admin.schemas.js'
 
 interface CountRow extends RowDataPacket { total: number }
 interface GenericRow extends RowDataPacket { [key: string]: unknown }
@@ -34,6 +46,99 @@ adminRouter.get('/dashboard', asyncHandler(async (_req, res) => {
     umkmAccounts: umkm[0]?.total ?? 0,
   })
 }))
+
+adminRouter.get('/users', validate(userListSchema, 'query'), asyncHandler(async (req, res) => {
+  const query = req.query as unknown as { limit: number; page: number; role?: string; status?: string }
+  const where = ["role <> 'ADMIN'"]
+  const params: Array<string | number> = []
+  if (query.role) { where.push('role = ?'); params.push(query.role) }
+  if (query.status) { where.push('status = ?'); params.push(query.status) }
+  const offset = (query.page - 1) * query.limit
+  const [rows] = await pool.query<GenericRow[]>(
+    `SELECT id, full_name AS fullName, email, role, status, created_at AS createdAt
+     FROM users WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [...params, query.limit, offset],
+  )
+  const [count] = await pool.query<CountRow[]>(`SELECT COUNT(*) AS total FROM users WHERE ${where.join(' AND ')}`, params)
+  const total = count[0]?.total ?? 0
+  sendOk(res, { items: rows, pagination: { limit: query.limit, page: query.page, total, totalPages: Math.ceil(total / query.limit) } })
+}))
+
+adminRouter.get('/warungs', validate(adminWarungListSchema, 'query'), asyncHandler(async (req, res) => {
+  const query = req.query as unknown as { limit: number; page: number; q?: string }
+  const where = query.q ? 'WHERE w.name LIKE ? OR w.address LIKE ?' : ''
+  const params: Array<string | number> = query.q ? [`%${query.q}%`, `%${query.q}%`] : []
+  const offset = (query.page - 1) * query.limit
+  const [rows] = await pool.query<GenericRow[]>(
+    `SELECT w.id, w.name, w.slug, w.address, w.approval_status AS approvalStatus, w.is_active AS isActive,
+      c.name AS category, u.email AS ownerEmail, w.updated_at AS updatedAt
+     FROM warungs w JOIN umkm_profiles up ON up.id = w.umkm_profile_id
+     JOIN users u ON u.id = up.user_id LEFT JOIN categories c ON c.id = w.category_id
+     ${where} ORDER BY w.updated_at DESC LIMIT ? OFFSET ?`,
+    [...params, query.limit, offset],
+  )
+  const [count] = await pool.query<CountRow[]>(`SELECT COUNT(*) AS total FROM warungs w ${where}`, params)
+  const total = count[0]?.total ?? 0
+  sendOk(res, { items: rows, pagination: { limit: query.limit, page: query.page, total, totalPages: Math.ceil(total / query.limit) } })
+}))
+
+adminRouter.patch('/warungs/:id', validate(idParamSchema, 'params'), validate(adminWarungUpdateSchema), asyncHandler(async (req, res) => {
+  const warungId = String(req.params.id)
+  const columns: Record<string, string> = {
+    address: 'address', categoryId: 'category_id', description: 'description', isActive: 'is_active', name: 'name',
+  }
+  const entries = Object.entries(req.body as Record<string, unknown>).filter(([key]) => columns[key])
+  const assignments = entries.map(([key]) => `${columns[key]} = ?`).join(', ')
+  const values = entries.map(([, value]) => value as string | number | boolean | null)
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE warungs SET ${assignments}, updated_at = NOW() WHERE id = ?`,
+    [...values, warungId],
+  )
+  if (!result.affectedRows) throw new ApiError(404, 'WARUNG_NOT_FOUND', 'Warung tidak ditemukan.')
+  await pool.execute(
+    'INSERT INTO audit_logs (id, admin_id, action, entity_type, entity_id, metadata_json) VALUES (?, ?, ?, \'WARUNG\', ?, ?)',
+    [randomUUID(), req.auth!.sub, 'WARUNG_UPDATED', warungId, JSON.stringify({ fields: entries.map(([key]) => key) })],
+  )
+  sendOk(res, null, 200, 'Data warung berhasil diperbarui.')
+}))
+
+adminRouter.delete('/warungs/:id', validate(idParamSchema, 'params'), asyncHandler(async (req, res) => {
+  const warungId = String(req.params.id)
+  const [result] = await pool.execute<ResultSetHeader>('UPDATE warungs SET is_active = 0, updated_at = NOW() WHERE id = ?', [warungId])
+  if (!result.affectedRows) throw new ApiError(404, 'WARUNG_NOT_FOUND', 'Warung tidak ditemukan.')
+  await pool.execute(
+    'INSERT INTO audit_logs (id, admin_id, action, entity_type, entity_id) VALUES (?, ?, \'WARUNG_DEACTIVATED\', \'WARUNG\', ?)',
+    [randomUUID(), req.auth!.sub, warungId],
+  )
+  sendOk(res, null, 200, 'Warung dinonaktifkan tanpa menghapus riwayat.')
+}))
+
+for (const config of [
+  { path: 'categories', table: 'categories', entity: 'CATEGORY' },
+  { path: 'facilities', table: 'facilities', entity: 'FACILITY' },
+] as const) {
+  adminRouter.post(`/${config.path}`, validate(referenceDataSchema), asyncHandler(async (req, res) => {
+    const id = randomUUID()
+    await pool.execute(`INSERT INTO ${config.table} (id, name, slug) VALUES (?, ?, ?)`, [id, req.body.name, slugify(req.body.name, id)])
+    sendOk(res, { id }, 201, `${config.entity} berhasil dibuat.`)
+  }))
+
+  adminRouter.patch(`/${config.path}/:id`, validate(idParamSchema, 'params'), validate(referenceDataUpdateSchema), asyncHandler(async (req, res) => {
+    const id = String(req.params.id)
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE ${config.table} SET name = ?, slug = ? WHERE id = ?`,
+      [req.body.name, slugify(req.body.name, id), id],
+    )
+    if (!result.affectedRows) throw new ApiError(404, 'REFERENCE_NOT_FOUND', 'Data referensi tidak ditemukan.')
+    sendOk(res, null, 200, `${config.entity} berhasil diperbarui.`)
+  }))
+
+  adminRouter.delete(`/${config.path}/:id`, validate(idParamSchema, 'params'), asyncHandler(async (req, res) => {
+    const [result] = await pool.execute<ResultSetHeader>(`DELETE FROM ${config.table} WHERE id = ?`, [String(req.params.id)])
+    if (!result.affectedRows) throw new ApiError(404, 'REFERENCE_NOT_FOUND', 'Data referensi tidak ditemukan.')
+    sendOk(res, null, 200, `${config.entity} berhasil dihapus.`)
+  }))
+}
 
 adminRouter.get('/applications', validate(applicationListSchema, 'query'), asyncHandler(async (req, res) => {
   const query = req.query as unknown as { limit: number; page: number; status?: string }
@@ -141,6 +246,17 @@ adminRouter.patch('/reports/:id', validate(idParamSchema, 'params'), validate(re
   )
   if (!result.affectedRows) throw new ApiError(404, 'REPORT_NOT_FOUND', 'Laporan tidak ditemukan.')
   sendOk(res, null, 200, 'Laporan berhasil ditinjau.')
+}))
+
+adminRouter.patch('/reviews/:id/status', validate(idParamSchema, 'params'), validate(reviewModerationSchema), asyncHandler(async (req, res) => {
+  const reviewId = String(req.params.id)
+  const [result] = await pool.execute<ResultSetHeader>('UPDATE reviews SET status = ?, updated_at = NOW() WHERE id = ?', [req.body.status, reviewId])
+  if (!result.affectedRows) throw new ApiError(404, 'REVIEW_NOT_FOUND', 'Ulasan tidak ditemukan.')
+  await pool.execute(
+    'INSERT INTO audit_logs (id, admin_id, action, entity_type, entity_id, metadata_json) VALUES (?, ?, \'REVIEW_STATUS_CHANGED\', \'REVIEW\', ?, ?)',
+    [randomUUID(), req.auth!.sub, reviewId, JSON.stringify({ status: req.body.status })],
+  )
+  sendOk(res, null, 200, 'Status ulasan berhasil diperbarui.')
 }))
 
 adminRouter.get('/audit-logs', asyncHandler(async (_req, res) => {

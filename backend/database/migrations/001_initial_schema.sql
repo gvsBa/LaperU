@@ -173,6 +173,25 @@ CREATE TABLE IF NOT EXISTS reviews (
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS review_replies (
+  review_id CHAR(36) PRIMARY KEY,
+  warung_id CHAR(36) NOT NULL,
+  reply_text VARCHAR(1500) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_review_replies_warung (warung_id, updated_at),
+  CONSTRAINT fk_review_replies_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE,
+  CONSTRAINT fk_review_replies_warung FOREIGN KEY (warung_id) REFERENCES warungs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS warung_profile_views (
+  id CHAR(36) PRIMARY KEY,
+  warung_id CHAR(36) NOT NULL,
+  viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_profile_views_warung_date (warung_id, viewed_at),
+  CONSTRAINT fk_profile_views_warung FOREIGN KEY (warung_id) REFERENCES warungs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS reports (
   id CHAR(36) PRIMARY KEY,
   reporter_id CHAR(36) NOT NULL,

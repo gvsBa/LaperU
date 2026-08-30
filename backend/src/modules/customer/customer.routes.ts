@@ -7,7 +7,7 @@ import { validate } from '../../middleware/validate.js'
 import { ApiError } from '../../utils/api-error.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { sendOk } from '../../utils/response.js'
-import { idParamSchema, reportSchema, reviewSchema, reviewUpdateSchema } from './customer.schemas.js'
+import { idParamSchema, reportSchema, reviewListSchema, reviewSchema, reviewUpdateSchema } from './customer.schemas.js'
 
 interface GenericRow extends RowDataPacket { [key: string]: unknown }
 
@@ -36,6 +36,26 @@ customerRouter.delete('/favorites/:id', validate(idParamSchema, 'params'), async
   const id = String(req.params.id)
   await pool.execute('DELETE FROM favorites WHERE user_id = ? AND warung_id = ?', [req.auth!.sub, id])
   sendOk(res, null, 200, 'Warung dihapus dari favorit.')
+}))
+
+customerRouter.get('/reviews', validate(reviewListSchema, 'query'), asyncHandler(async (req, res) => {
+  const query = req.query as unknown as { limit: number; page: number }
+  const offset = (query.page - 1) * query.limit
+  const [rows] = await pool.query<GenericRow[]>(
+    `SELECT r.id, r.warung_id AS warungId, w.name AS warungName, w.slug AS warungSlug,
+      r.taste_rating AS tasteRating, r.price_rating AS priceRating, r.portion_rating AS portionRating,
+      r.cleanliness_rating AS cleanlinessRating, r.comfort_rating AS comfortRating, r.speed_rating AS speedRating,
+      (r.taste_rating + r.price_rating + r.portion_rating + r.cleanliness_rating + r.comfort_rating + r.speed_rating) / 6 AS averageRating,
+      r.comment, r.status, r.created_at AS createdAt, r.updated_at AS updatedAt,
+      rr.reply_text AS umkmReply, rr.updated_at AS repliedAt
+     FROM reviews r JOIN warungs w ON w.id = r.warung_id
+     LEFT JOIN review_replies rr ON rr.review_id = r.id
+     WHERE r.user_id = ? ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+    [req.auth!.sub, query.limit, offset],
+  )
+  const [count] = await pool.query<Array<RowDataPacket & { total: number }>>('SELECT COUNT(*) AS total FROM reviews WHERE user_id = ?', [req.auth!.sub])
+  const total = count[0]?.total ?? 0
+  sendOk(res, { items: rows, pagination: { limit: query.limit, page: query.page, total, totalPages: Math.ceil(total / query.limit) } })
 }))
 
 customerRouter.post('/reviews', validate(reviewSchema), asyncHandler(async (req, res) => {

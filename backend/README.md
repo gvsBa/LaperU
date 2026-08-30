@@ -9,9 +9,9 @@ REST API versi awal yang mengikuti kebutuhan fitur pada Notion untuk Guest, Cust
 | Sistem | `GET /api/v1/health`, `GET /api/v1/health/database` |
 | Auth | registrasi Customer/UMKM, login, refresh, logout, profil akun |
 | Guest | pencarian/filter dan detail warung, metadata filter |
-| Customer | favorit, ulasan multidimensi, dan laporan |
-| UMKM | pengajuan, profil warung, menu, jam operasional, dan foto berbasis URL |
-| Admin | dashboard, verifikasi pengajuan, status pengguna, laporan, dan audit log |
+| Customer | favorit, riwayat dan ulasan multidimensi, serta laporan |
+| UMKM | pengajuan, profil warung, menu, jam operasional, fasilitas, pembayaran, unggah foto, balasan ulasan, dan statistik |
+| Admin | dashboard, verifikasi pengajuan, pengguna, warung, kategori, fasilitas, moderasi, dan audit log |
 
 Spesifikasi request dan response tersedia di `openapi.yaml`.
 
@@ -36,6 +36,13 @@ Jika dijalankan dari root project, tambahkan `--workspace @laperu/backend` pada 
 - Format berhasil: `{ "success": true, "data": ... }`.
 - Format gagal: `{ "success": false, "code": "...", "message": "..." }`.
 
-## Catatan penyimpanan foto
+## Unggah foto
 
-Endpoint saat ini menyimpan URL foto. Upload file langsung perlu disambungkan ke object storage seperti Cloudinary atau S3 setelah pilihan layanan tim disepakati.
+Kirim `multipart/form-data` dengan field `image` ke `POST /api/v1/umkm/uploads/images`. Backend menerima JPG/JPEG/PNG maksimal 2 MB, memeriksa MIME dan signature file, lalu mengembalikan URL yang dapat dipakai pada pengajuan, menu, atau galeri. Penyimpanan lokal siap untuk development; sebelum deployment multi-instance, ganti adapter penyimpanan dengan object storage seperti Cloudinary atau S3.
+
+## QA
+
+- Traceability requirement: `../docs/SRS_BACKEND_TRACEABILITY.md`.
+- Handoff QA: `../docs/QA_HANDOFF.md`.
+- Payload aman untuk testing: `test-data/qa-payloads.json`.
+- Generator file gambar batas: `npm run qa:generate-images`.

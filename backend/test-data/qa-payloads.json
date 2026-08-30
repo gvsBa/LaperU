@@ -1,0 +1,39 @@
+{
+  "emails": {
+    "valid": [
+      "customer.valid@example.test",
+      "umkm.valid@example.test",
+      "nama+filter@example.test"
+    ],
+    "invalid": [
+      "tanpa-at.example.test",
+      "@example.test",
+      "user@",
+      "user name@example.test"
+    ]
+  },
+  "passwords": [
+    { "value": "Valid123", "expected": "accepted", "reason": "Minimal delapan karakter, memiliki huruf dan angka." },
+    { "value": "Pendek1", "expected": "rejected", "reason": "Kurang dari delapan karakter." },
+    { "value": "TanpaAngka", "expected": "rejected", "reason": "Tidak memiliki angka." },
+    { "value": "12345678", "expected": "rejected", "reason": "Tidak memiliki huruf." },
+    { "value": "Panjang1234567890123456789012345678901234567890123456789012345678901234567890", "expected": "rejected", "reason": "Lebih dari 72 karakter." }
+  ],
+  "sqlInjection": [
+    "' OR '1'='1",
+    "admin'--",
+    "%' UNION SELECT NULL--"
+  ],
+  "xss": [
+    "<script>alert('qa')</script>",
+    "<img src=x onerror=alert('qa')>",
+    "<svg onload=alert('qa')>"
+  ],
+  "notes": [
+    "Semua alamat email memakai domain example.test dan bukan akun nyata.",
+    "Payload hanya digunakan pada environment lokal/testing milik tim.",
+    "SQL injection harus diperlakukan sebagai nilai parameter biasa; jangan menggabungkan input ke string SQL.",
+    "Markup HTML pada field teks harus ditolak dengan VALIDATION_ERROR."
+  ]
+}
+

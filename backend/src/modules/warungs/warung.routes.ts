@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { randomUUID } from 'node:crypto'
 import type { RowDataPacket } from 'mysql2/promise'
 import { pool } from '../../db/pool.js'
 import { validate } from '../../middleware/validate.js'
@@ -24,11 +25,13 @@ export const publicWarungRouter = Router()
 
 publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(async (req, res) => {
   const query = req.query as unknown as {
-    category?: string; facility?: string; limit: number; maxPrice?: number; minPrice?: number
-    minRating?: number; openNow?: boolean; page: number; payment?: string; q?: string
+    category?: string; facility?: string; latitude?: number; limit: number; longitude?: number; maxPrice?: number; minPrice?: number
+    minRating?: number; openNow?: boolean; page: number; payment?: string; q?: string; radiusKm?: number
   }
   const where = [`w.approval_status = 'APPROVED'`, `w.is_active = 1`]
   const params: Array<string | number> = []
+  const selectParams: Array<number> = []
+  let distanceSelect = 'NULL AS distanceKm'
 
   if (query.q) {
     where.push(`(w.name LIKE ? OR w.description LIKE ? OR EXISTS (SELECT 1 FROM menu_items mi WHERE mi.warung_id = w.id AND mi.is_active = 1 AND mi.name LIKE ?))`)
@@ -49,6 +52,16 @@ publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(as
     where.push('EXISTS (SELECT 1 FROM warung_payment_methods wp JOIN payment_methods pm ON pm.id = wp.payment_method_id WHERE wp.warung_id = w.id AND pm.slug = ?)')
     params.push(query.payment)
   }
+  if (query.latitude !== undefined && query.longitude !== undefined) {
+    const distanceExpression = 'ST_Distance_Sphere(POINT(w.longitude, w.latitude), POINT(?, ?)) / 1000'
+    distanceSelect = `${distanceExpression} AS distanceKm`
+    selectParams.push(query.longitude, query.latitude)
+    where.push('w.latitude IS NOT NULL AND w.longitude IS NOT NULL')
+    if (query.radiusKm !== undefined) {
+      where.push(`${distanceExpression} <= ?`)
+      params.push(query.longitude, query.latitude, query.radiusKm)
+    }
+  }
   if (query.minRating !== undefined) { where.push(`${ratingExpression} >= ?`); params.push(query.minRating) }
   if (query.openNow) where.push(`${openExpression} = 1`)
 
@@ -57,13 +70,13 @@ publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(as
   const [rows] = await pool.query<GenericRow[]>(
     `SELECT w.id, w.name, w.slug, w.address, w.latitude, w.longitude, w.price_min AS priceMin,
       w.price_max AS priceMax, w.status_override AS statusOverride, w.updated_at AS updatedAt,
-      c.name AS category, ${ratingExpression} AS rating,
+      c.name AS category, ${distanceSelect}, ${ratingExpression} AS rating,
       (SELECT COUNT(*) FROM reviews r WHERE r.warung_id = w.id AND r.status = 'VISIBLE') AS reviewCount,
       ${openExpression} AS isOpen
      FROM warungs w LEFT JOIN categories c ON c.id = w.category_id
      WHERE ${whereSql}
-     ORDER BY rating DESC, reviewCount DESC, w.name ASC LIMIT ? OFFSET ?`,
-    [...params, query.limit, offset],
+     ORDER BY ${query.latitude !== undefined ? 'distanceKm ASC,' : ''} rating DESC, reviewCount DESC, w.name ASC LIMIT ? OFFSET ?`,
+    [...selectParams, ...params, query.limit, offset],
   )
   const [countRows] = await pool.query<CountRow[]>(`SELECT COUNT(*) AS total FROM warungs w WHERE ${whereSql}`, params)
   const total = countRows[0]?.total ?? 0
@@ -86,12 +99,28 @@ publicWarungRouter.get('/:slug', validate(warungSlugSchema, 'params'), asyncHand
   if (!warung) throw new ApiError(404, 'WARUNG_NOT_FOUND', 'Warung tidak ditemukan.')
 
   const id = String(warung.id)
-  const [[menus], [hours], [facilities], [payments], [photos]] = await Promise.all([
+  const [[menus], [hours], [facilities], [payments], [photos], [reviews]] = await Promise.all([
     pool.execute<GenericRow[]>('SELECT id, name, description, price, is_available AS isAvailable, photo_url AS photoUrl FROM menu_items WHERE warung_id = ? AND is_active = 1 ORDER BY name', [id]),
     pool.execute<GenericRow[]>('SELECT day_of_week AS dayOfWeek, open_time AS openTime, close_time AS closeTime, is_closed AS isClosed FROM operating_hours WHERE warung_id = ? ORDER BY day_of_week', [id]),
     pool.execute<GenericRow[]>('SELECT f.name, f.slug FROM warung_facilities wf JOIN facilities f ON f.id = wf.facility_id WHERE wf.warung_id = ? ORDER BY f.name', [id]),
     pool.execute<GenericRow[]>('SELECT pm.name, pm.slug FROM warung_payment_methods wp JOIN payment_methods pm ON pm.id = wp.payment_method_id WHERE wp.warung_id = ? ORDER BY pm.name', [id]),
     pool.execute<GenericRow[]>('SELECT id, url, alt_text AS altText, type, sort_order AS sortOrder FROM photos WHERE warung_id = ? ORDER BY sort_order', [id]),
+    pool.execute<GenericRow[]>(
+      `SELECT r.id, u.full_name AS customerName, r.taste_rating AS tasteRating, r.price_rating AS priceRating,
+        r.portion_rating AS portionRating, r.cleanliness_rating AS cleanlinessRating,
+        r.comfort_rating AS comfortRating, r.speed_rating AS speedRating,
+        (r.taste_rating + r.price_rating + r.portion_rating + r.cleanliness_rating + r.comfort_rating + r.speed_rating) / 6 AS averageRating,
+        r.comment, r.created_at AS createdAt, rr.reply_text AS umkmReply, rr.updated_at AS repliedAt
+       FROM reviews r JOIN users u ON u.id = r.user_id
+       LEFT JOIN review_replies rr ON rr.review_id = r.id
+       WHERE r.warung_id = ? AND r.status = 'VISIBLE' ORDER BY r.created_at DESC LIMIT 50`,
+      [id],
+    ),
   ])
-  sendOk(res, { ...warung, facilities, hours, menus, payments, photos })
+  await pool.execute('INSERT INTO warung_profile_views (id, warung_id) VALUES (?, ?)', [randomUUID(), id])
+  const destination = warung.latitude !== null && warung.longitude !== null
+    ? `${warung.latitude},${warung.longitude}`
+    : String(warung.address)
+  const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+  sendOk(res, { ...warung, facilities, hours, mapUrl, menus, payments, photos, reviews })
 }))
