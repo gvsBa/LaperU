@@ -9,12 +9,25 @@ const items = [
   { to: '/login', icon: 'user', label: 'Akun' },
 ]
 
-function QuickSidebar() {
+function QuickSidebar({ variant = 'fixed',  onNavigate }) {
+  const isDrawer = variant === 'drawer'
+
   return (
-    <aside className="quick-nav" aria-label="Navigasi cepat">
-      <div className="quick-nav__line" />
+    <aside
+      className={`quick-nav ${isDrawer ? 'quick-nav--drawer' : ''}`}
+      aria-label="Navigasi cepat"
+    >
+      {!isDrawer && <div className="quick-nav__line" />}
+
       {items.map((item) => (
-        <NavLink key={item.label} to={item.to} end={item.to === '/'} title={item.label} aria-label={item.label}>
+        <NavLink
+          key={item.label}
+          to={item.to}
+          end={item.to === '/'}
+          title={item.label}
+          aria-label={item.label}
+          onClick={onNavigate}
+        >
           <Icon name={item.icon} size={21} filled={item.icon === 'heart'} />
           <span>{item.label}</span>
         </NavLink>

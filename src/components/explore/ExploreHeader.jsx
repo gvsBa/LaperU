@@ -1,15 +1,27 @@
-import { useState } from 'react'
+// import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../common/Logo'
 import Icon from '../common/Icon'
 import profileAvatar from '../../assets/images/profile-avatar.webp'
 
-function ExploreHeader({ query, onQueryChange, onSearch, isAuthenticated }) {
-  const [menuOpen, setMenuOpen] = useState(false)
+function ExploreHeader({
+  query,
+  onQueryChange,
+  onSearch,
+  isAuthenticated,
+  isSidebarOpen,
+  onMenuToggle,
+}) {
 
   return (
     <header className="explore-header">
-      <button className="explore-header__menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Buka menu" aria-expanded={menuOpen}>
+      <button
+        className="explore-header__menu"
+        type="button"
+        onClick={onMenuToggle}
+        aria-label={isSidebarOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+        aria-expanded={isSidebarOpen}
+      >
         <Icon name="menu" size={22} />
       </button>
       <Logo />
@@ -38,13 +50,13 @@ function ExploreHeader({ query, onQueryChange, onSearch, isAuthenticated }) {
         )}
       </div>
 
-      {menuOpen && (
+      {/* {menuOpen && (
         <nav className="explore-drawer">
           <Link to="/">Beranda</Link>
           <Link to="/explore">Jelajahi</Link>
           <Link to={isAuthenticated ? '/explore?mode=account' : '/login'}>{isAuthenticated ? 'Profil' : 'Masuk'}</Link>
         </nav>
-      )}
+      )} */}
     </header>
   )
 }

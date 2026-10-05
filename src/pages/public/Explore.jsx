@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ExploreHeader from '../../components/explore/ExploreHeader'
 import RestaurantCard from '../../components/restaurant/RestaurantCard'
 import restaurants from '../../mocks/restaurants'
-
+import EmptySearchIllustration from '../../components/explore/EmptySearchIllustration'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import QuickSidebar from '../../components/layout/QuickSidebar'
 const categories = [
   'Semua',
   'Masakan Sunda',
@@ -15,18 +16,30 @@ const categories = [
   'Fast Food',
 ]
 
+const sortOptions = [
+  { value: 'recommended', label: 'Rekomendasi' },
+  { value: 'nearest', label: 'Terdekat' },
+  { value: 'rating', label: 'Rating tertinggi' },
+  { value: 'cheapest', label: 'Harga termurah' },
+]
+
 function Explore() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [activeCategory, setActiveCategory] = useState('Semua')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [priceBand, setPriceBand] = useState('all')
   const [minRating, setMinRating] = useState('all')
   const [openNow, setOpenNow] = useState(false)
   const [facility, setFacility] = useState('all')
   const [payment, setPayment] = useState('all')
   const [sortBy, setSortBy] = useState('recommended')
+  const [sortOpen, setSortOpen] = useState(false)
+  const sortMenuRef = useRef(null)
 
+  const selectedSort =
+    sortOptions.find((option) => option.value === sortBy) || sortOptions[0]
   const isAuthenticated = searchParams.get('mode') === 'account'
 
   const filteredRestaurants = useMemo(() => {
@@ -99,7 +112,7 @@ function Explore() {
     facility !== 'all',
     payment !== 'all',
   ].filter(Boolean).length
-
+  const hasResults = filteredRestaurants.length > 0
   function handleSearch(event) {
     event.preventDefault()
 
@@ -121,7 +134,31 @@ function Explore() {
     setPayment('all')
     setSortBy('recommended')
     setSearchParams(isAuthenticated ? { mode: 'account' } : {})
+    setFilterOpen(false)
   }
+
+  useEffect(() => {
+  function handleEscape(event) {
+    if (event.key === 'Escape') {
+      setSidebarOpen(false)
+      setSortOpen(false)
+    }
+  }
+
+  function handleOutsideClick(event) {
+    if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+      setSortOpen(false)
+    }
+  }
+
+  window.addEventListener('keydown', handleEscape)
+  document.addEventListener('mousedown', handleOutsideClick)
+
+  return () => {
+    window.removeEventListener('keydown', handleEscape)
+    document.removeEventListener('mousedown', handleOutsideClick)
+  }
+}, [])
 
   return (
     <div className="explore-page">
@@ -130,7 +167,25 @@ function Explore() {
         onQueryChange={setQuery}
         onSearch={handleSearch}
         isAuthenticated={isAuthenticated}
+        isSidebarOpen={sidebarOpen}
+        onMenuToggle={() => setSidebarOpen((current) => !current)}
       />
+
+      {sidebarOpen && (
+        <>
+          <button
+            type="button"
+            className="quick-nav__backdrop"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Tutup navigasi"
+          />
+
+          <QuickSidebar
+            variant="drawer"
+            onNavigate={() => setSidebarOpen(false)}
+          />
+        </>
+      )}
 
       <main className="explore-main">
         <div className="category-tabs" aria-label="Kategori warung">
@@ -146,121 +201,147 @@ function Explore() {
           ))}
         </div>
 
-        <div className="explore-result-heading">
-          <div>
-            <span>{filteredRestaurants.length} warung ditemukan</span>
-            <h1>
-              {searchParams.get('q')
-                ? `Hasil untuk “${searchParams.get('q')}”`
-                : 'Warung di sekitar Telkom University'}
-            </h1>
-          </div>
+        {hasResults && (
+  <div className="explore-result-heading">
+    <div>
+      <span>{filteredRestaurants.length} warung ditemukan</span>
+      <h1>
+        {searchParams.get('q')
+          ? `Hasil untuk “${searchParams.get('q')}”`
+          : 'Warung di sekitarmu'}
+      </h1>
+    </div>
 
-          <div className="explore-toolbar">
-            <button
-              type="button"
-              className="filter-trigger"
-              onClick={() => setFilterOpen((current) => !current)}
-              aria-expanded={filterOpen}
-            >
-              Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </button>
+    <div className="explore-toolbar">
+      <button
+        type="button"
+        className={filterOpen ? 'filter-trigger active' : 'filter-trigger'}
+        onClick={() => setFilterOpen((current) => !current)}
+      >
+        Filter {activeFilterCount > 0 && `(${activeFilterCount})`}
+      </button>
 
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value)}
-              aria-label="Urutkan hasil"
-            >
-              <option value="recommended">Rekomendasi</option>
-              <option value="nearest">Terdekat</option>
-              <option value="rating">Rating tertinggi</option>
-              <option value="cheapest">Harga termurah</option>
-            </select>
-          </div>
-        </div>
+      <div className="sort-menu" ref={sortMenuRef}>
+  <button
+    type="button"
+    className={sortOpen ? 'sort-menu__trigger is-open' : 'sort-menu__trigger'}
+    onClick={() => setSortOpen((current) => !current)}
+    aria-haspopup="listbox"
+    aria-expanded={sortOpen}
+  >
+    <span>{selectedSort.label}</span>
+    <span className="sort-menu__chevron">⌄</span>
+  </button>
 
-        {filterOpen && (
-          <section className="explore-filter-panel" aria-label="Filter warung">
-            <label>
-              Rentang harga
-              <select value={priceBand} onChange={(event) => setPriceBand(event.target.value)}>
-                <option value="all">Semua harga</option>
-                <option value="under20">Di bawah Rp20.000</option>
-                <option value="20to30">Rp20.000 - Rp30.000</option>
-                <option value="above30">Di atas Rp30.000</option>
-              </select>
-            </label>
+  {sortOpen && (
+    <div className="sort-menu__list" role="listbox" aria-label="Urutkan warung">
+      {sortOptions.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={sortBy === option.value ? 'sort-menu__option active' : 'sort-menu__option'}
+          onClick={() => {
+            setSortBy(option.value)
+            setSortOpen(false)
+          }}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
+    </div>
+  </div>
+)}
 
-            <label>
-              Rating minimum
-              <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
-                <option value="all">Semua rating</option>
-                <option value="4.5">4,5 ke atas</option>
-                <option value="4.7">4,7 ke atas</option>
-              </select>
-            </label>
+{hasResults && filterOpen && (
+  <section className="explore-filter-panel" aria-label="Filter warung">
+    <label>
+      Harga
+      <select value={priceBand} onChange={(event) => setPriceBand(event.target.value)}>
+        <option value="all">Semua harga</option>
+        <option value="under20">Di bawah Rp20.000</option>
+        <option value="20to30">Rp20.000 - Rp30.000</option>
+        <option value="above30">Di atas Rp30.000</option>
+      </select>
+    </label>
 
-            <label>
-              Fasilitas
-              <select value={facility} onChange={(event) => setFacility(event.target.value)}>
-                <option value="all">Semua fasilitas</option>
-                <option value="Parkir">Parkir</option>
-                <option value="Makan di tempat">Makan di tempat</option>
-                <option value="WiFi">WiFi</option>
-                <option value="QRIS">QRIS</option>
-              </select>
-            </label>
+    <label>
+      Rating
+      <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
+        <option value="all">Semua rating</option>
+        <option value="4">Rating 4.0+</option>
+        <option value="4.5">Rating 4.5+</option>
+      </select>
+    </label>
 
-            <label>
-              Pembayaran
-              <select value={payment} onChange={(event) => setPayment(event.target.value)}>
-                <option value="all">Semua pembayaran</option>
-                <option value="Tunai">Tunai</option>
-                <option value="QRIS">QRIS</option>
-                <option value="Transfer">Transfer</option>
-              </select>
-            </label>
+    <label>
+      Fasilitas
+      <select value={facility} onChange={(event) => setFacility(event.target.value)}>
+        <option value="all">Semua fasilitas</option>
+        <option value="wifi">WiFi</option>
+        <option value="parking">Parkir</option>
+        <option value="dine-in">Makan di tempat</option>
+      </select>
+    </label>
 
-            <label className="open-now-toggle">
-              <input
-                type="checkbox"
-                checked={openNow}
-                onChange={(event) => setOpenNow(event.target.checked)}
-              />
-              Hanya tampilkan yang buka sekarang
-            </label>
+    <label>
+      Pembayaran
+      <select value={payment} onChange={(event) => setPayment(event.target.value)}>
+        <option value="all">Semua pembayaran</option>
+        <option value="cash">Tunai</option>
+        <option value="qris">QRIS</option>
+        <option value="transfer">Transfer</option>
+      </select>
+    </label>
 
-            <button type="button" className="filter-reset" onClick={resetExplore}>
-              Reset filter
-            </button>
-          </section>
-        )}
+    <label className="open-now-toggle">
+      <input
+        type="checkbox"
+        checked={openNow}
+        onChange={(event) => setOpenNow(event.target.checked)}
+      />
+      Buka sekarang
+    </label>
 
-        {filteredRestaurants.length > 0 ? (
-          <div className="explore-restaurant-grid">
-            {filteredRestaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-            ))}
-          </div>
-        ) : (
-          <div className="explore-empty">
-            <h2>Warung yang kamu cari belum ketemu.</h2>
-            <p>Coba kata kunci atau filter lain.</p>
-            <button type="button" onClick={resetExplore}>
-              Reset pencarian
-            </button>
-          </div>
-        )}
+    <button type="button" className="filter-reset" onClick={resetExplore}>
+      Reset filter
+    </button>
+  </section>
+)}
 
-        {!isAuthenticated && (
-          <p className="guest-hint">
-            Sedang menjelajah sebagai Guest.{' '}
-            <Link to="/login?next=/explore">
-              Masuk
-            </Link>{' '}
-            untuk menyimpan favorit dan memberi ulasan.
-          </p>
-        )}
+{hasResults ? (
+  <div className="explore-restaurant-grid">
+    {filteredRestaurants.map((restaurant) => (
+      <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+    ))}
+  </div>
+) : (
+  <section className="explore-empty" role="status">
+    <EmptySearchIllustration />
+
+    <div className="explore-empty__content">
+      <span className="explore-empty__eyebrow">Pencarian tidak ditemukan</span>
+      <h2>Warung yang kamu cari belum ketemu</h2>
+      <p>
+        Coba pakai kata kunci lain, ganti kategori, atau hapus filter yang
+        sedang aktif.
+      </p>
+      <button type="button" onClick={resetExplore}>
+        Atur ulang pencarian
+      </button>
+    </div>
+  </section>
+)}
+
+{hasResults && !isAuthenticated && (
+  <p className="guest-hint">
+    Sedang menjelajah sebagai Guest.{' '}
+    <Link to="/login?next=/explore">Masuk</Link> untuk menyimpan favorit dan
+    memberi ulasan.
+  </p>
+)}
       </main>
     </div>
   )
