@@ -11,9 +11,10 @@ function AppRoutes() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/restaurants/:id" element={<RestaurantDetail />} />
       </Route>
+
       <Route path="/explore" element={<Explore />} />
+      <Route path="/restaurants/:id" element={<RestaurantDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
     </Routes>
