@@ -1,73 +1,67 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ExploreHeader from '../../components/explore/ExploreHeader'
-import MenuCard from '../../components/explore/MenuCard'
-import menuItems from '../../mocks/menuItems'
+import RestaurantCard from '../../components/restaurant/RestaurantCard'
+import { getFilterOptions, listWarungs } from '../../services/restaurantService'
+import { useAuth } from '../../auth/useAuth'
 
-const categories = ['Semua', 'Sarapan', 'Makanan Utama', 'Minuman', 'Dessert']
-
-function Explore() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [query, setQuery] = useState(searchParams.get('q') || '')
-  const [activeCategory, setActiveCategory] = useState('Semua')
-  const isAuthenticated = searchParams.get('mode') === 'account'
-
-  const filteredItems = useMemo(() => {
-    const keyword = (searchParams.get('q') || '').trim().toLowerCase()
-    return menuItems.filter((item) => {
-      const categoryMatches = activeCategory === 'Semua' || item.category === activeCategory
-      const queryMatches = !keyword || `${item.name} ${item.restaurant}`.toLowerCase().includes(keyword)
-      return categoryMatches && queryMatches
-    })
-  }, [activeCategory, searchParams])
-
-  function handleSearch(event) {
-    event.preventDefault()
-    const nextParams = new URLSearchParams(searchParams)
-    if (query.trim()) nextParams.set('q', query.trim())
-    else nextParams.delete('q')
-    setSearchParams(nextParams)
+export default function Explore() {
+  const [params, setParams] = useSearchParams()
+  const queryKey = params.toString()
+  const [query, setQuery] = useState(params.get('q') || '')
+  const [metadata, setMetadata] = useState({ categories: [] })
+  const [metadataError, setMetadataError] = useState('')
+  const [result, setResult] = useState({ items: [], pagination: null })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
+  const { user } = useAuth()
+  useEffect(() => {
+    const controller = new AbortController()
+    getFilterOptions({ signal: controller.signal }).then(setMetadata).catch((error) => { if (!controller.signal.aborted) setMetadataError(error.message) })
+    return () => controller.abort()
+  }, [retry])
+  useEffect(() => {
+    const controller = new AbortController()
+    const filters = new URLSearchParams(queryKey)
+    const requestFilters = Object.fromEntries(['q', 'category', 'maxPrice', 'openNow', 'page'].map((key) => [key, filters.get(key)]))
+    Promise.resolve().then(() => { if (!controller.signal.aborted) { setLoading(true); setError(''); setQuery(filters.get('q') || '') } })
+    listWarungs({ ...requestFilters, limit: 12 }, { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) setResult(data) })
+      .catch((error) => { if (!controller.signal.aborted) setError(error.message) })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [queryKey, retry])
+  function updateFilter(key, value) {
+    const next = new URLSearchParams(params); next.delete('mode')
+    if (value) next.set(key, value); else next.delete(key)
+    if (key !== 'page') next.delete('page')
+    setParams(next)
   }
-
-  return (
-    <div className="explore-page">
-      <ExploreHeader query={query} onQueryChange={setQuery} onSearch={handleSearch} isAuthenticated={isAuthenticated} />
-
-      <main className="explore-main">
-        <div className="category-tabs" aria-label="Kategori menu">
-          {categories.map((category) => (
-            <button key={category} className={activeCategory === category ? 'active' : ''} onClick={() => setActiveCategory(category)}>
-              {category}
-            </button>
-          ))}
-        </div>
-
-        <div className="explore-result-heading">
-          <div>
-            <span>{filteredItems.length} menu ditemukan</span>
-            <h1>{searchParams.get('q') ? `Hasil untuk “${searchParams.get('q')}”` : 'Menu populer di sekitarmu'}</h1>
-          </div>
-          <button type="button">Terpopuler⌄</button>
-        </div>
-
-        {filteredItems.length > 0 ? (
-          <div className="menu-grid">
-            {filteredItems.map((item) => <MenuCard key={item.id} item={item} />)}
-          </div>
-        ) : (
-          <div className="explore-empty">
-            <h2>Menu yang kamu cari belum ketemu.</h2>
-            <p>Coba kata kunci lain atau tampilkan kembali semua kategori.</p>
-            <button onClick={() => { setQuery(''); setSearchParams(isAuthenticated ? { mode: 'account' } : {}); setActiveCategory('Semua') }}>Reset pencarian</button>
-          </div>
-        )}
-
-        {!isAuthenticated && (
-          <p className="guest-hint">Sedang menjelajah sebagai Guest. <Link to="/login?next=/explore">Masuk</Link> untuk menyimpan favorit dan memberi ulasan.</p>
-        )}
-      </main>
-    </div>
-  )
+  function handleSearch(event) { event.preventDefault(); updateFilter('q', query.trim()) }
+  const pagination = result.pagination
+  return <div className="explore-page">
+    <ExploreHeader query={query} onQueryChange={setQuery} onSearch={handleSearch} />
+    <main className="explore-main">
+      <div className="category-tabs" aria-label="Kategori warung">
+        <button className={!params.get('category') ? 'active' : ''} onClick={() => updateFilter('category', '')}>Semua</button>
+        {metadata.categories.map((category) => <button key={category.id} className={params.get('category') === category.slug ? 'active' : ''} onClick={() => updateFilter('category', category.slug)}>{category.name}</button>)}
+      </div>
+      {metadataError && <p role="status">Kategori belum dapat dimuat. Pencarian tetap bisa dicoba.</p>}
+      <form className="discovery-filters" onSubmit={(event) => { event.preventDefault(); updateFilter('maxPrice', new FormData(event.currentTarget).get('maxPrice')) }}>
+        <label>Maksimal budget (Rp)<input key={params.get('maxPrice') || 'empty'} name="maxPrice" type="number" min="0" step="1000" defaultValue={params.get('maxPrice') || ''} placeholder="Contoh: 20000" /></label>
+        <button className="button button--outline" type="submit">Terapkan budget</button>
+        <label className="filter-check"><input type="checkbox" checked={params.get('openNow') === 'true'} onChange={(event) => updateFilter('openNow', event.target.checked ? 'true' : '')} />Sedang buka</label>
+        <button className="button button--outline" type="button" onClick={() => { setQuery(''); setParams({}) }}>Reset filter</button>
+      </form>
+      <div className="explore-result-heading"><div><span>{loading ? 'Memuat warung…' : error ? 'Data belum tersedia' : `${pagination?.total || 0} warung ditemukan`}</span><h1>{params.get('q') ? `Hasil untuk “${params.get('q')}”` : 'Jelajahi warung sekitar kampus'}</h1></div><span>Urutan: rating dan jumlah ulasan</span></div>
+      <p className="auth-help">Hasil berupa warung. Harga adalah rentang harga warung, bukan jaminan harga setiap menu.</p>
+      {loading && <p role="status">Sedang mengambil informasi dari server…</p>}
+      {!loading && error && <div className="explore-empty" role="alert"><h2>Warung belum dapat dimuat.</h2><p>{error}</p><button onClick={() => { setMetadataError(''); setRetry((n) => n + 1) }}>Coba lagi</button></div>}
+      {!loading && !error && result.items.length > 0 && <div className="restaurant-grid">{result.items.map((item) => <RestaurantCard key={item.id} restaurant={item} />)}</div>}
+      {!loading && !error && result.items.length === 0 && <div className="explore-empty"><h2>Warung belum ditemukan.</h2><p>Coba kata kunci atau budget lain.</p><button onClick={() => { setQuery(''); setParams({}) }}>Reset pencarian</button></div>}
+      {!loading && !error && pagination?.totalPages > 1 && <nav className="pagination" aria-label="Halaman hasil pencarian"><button disabled={pagination.page <= 1} onClick={() => updateFilter('page', String(pagination.page - 1))}>Sebelumnya</button><span>Halaman {pagination.page} dari {pagination.totalPages}</span><button disabled={pagination.page >= pagination.totalPages} onClick={() => updateFilter('page', String(pagination.page + 1))}>Berikutnya</button></nav>}
+      {!user && <p className="guest-hint">Sedang menjelajah sebagai Guest. <Link to="/login?next=/explore">Masuk</Link> untuk menyimpan favorit.</p>}
+    </main>
+  </div>
 }
-
-export default Explore

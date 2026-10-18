@@ -9,5 +9,7 @@ backend/test-data/generated
 *.local
 *.log
 .DS_Store
+test-results/
+playwright-report/
 .vscode/*
 !.vscode/extensions.json

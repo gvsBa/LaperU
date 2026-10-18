@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../common/Logo'
 import Icon from '../common/Icon'
-import profileAvatar from '../../assets/images/profile-avatar.webp'
+import { useAuth } from '../../auth/useAuth.js'
 
-function ExploreHeader({ query, onQueryChange, onSearch, isAuthenticated }) {
+function ExploreHeader({ query, onQueryChange, onSearch }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user, loading } = useAuth()
 
   return (
     <header className="explore-header">
@@ -19,20 +20,14 @@ function ExploreHeader({ query, onQueryChange, onSearch, isAuthenticated }) {
         <button type="submit" aria-label="Cari"><Icon name="search" size={18} /></button>
       </form>
 
-      <button className="location-picker" type="button">
+      <div className="location-picker" aria-label="Area jelajah Telkom University">
         <span><Icon name="mapPin" size={17} filled /></span>
         <strong>Telkom University</strong>
-        <small>⌄</small>
-      </button>
+      </div>
 
       <div className="explore-header__user">
-        {isAuthenticated ? (
-          <>
-            <button className="notification-button" aria-label="Notifikasi"><Icon name="bell" size={20} /></button>
-            <button type="button" className="profile-avatar" aria-label="Profil saya">
-              <img src={profileAvatar} alt="Foto profil pengguna" />
-            </button>
-          </>
+        {loading ? <span className="session-status" role="status">Memuat sesi…</span> : user ? (
+          <Link to="/account" className="explore-login" title={user.fullName} aria-label={`Akun ${user.fullName}`}><Icon name="user" size={20} /><span>Akun saya</span></Link>
         ) : (
           <Link to="/login?next=/explore" className="explore-login">Masuk</Link>
         )}
@@ -40,9 +35,10 @@ function ExploreHeader({ query, onQueryChange, onSearch, isAuthenticated }) {
 
       {menuOpen && (
         <nav className="explore-drawer">
-          <Link to="/">Beranda</Link>
-          <Link to="/explore">Jelajahi</Link>
-          <Link to={isAuthenticated ? '/explore?mode=account' : '/login'}>{isAuthenticated ? 'Profil' : 'Masuk'}</Link>
+          <Link to="/" onClick={() => setMenuOpen(false)}>Beranda</Link>
+          <Link to="/explore" onClick={() => setMenuOpen(false)}>Jelajahi</Link>
+          {(!user || user.role === 'CUSTOMER') && <Link to="/favorites" onClick={() => setMenuOpen(false)}>Favorit</Link>}
+          <Link to="/account" onClick={() => setMenuOpen(false)}>{user ? 'Akun saya' : 'Masuk ke akun'}</Link>
         </nav>
       )}
     </header>

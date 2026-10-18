@@ -12,10 +12,12 @@ function Home() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    getFeaturedRestaurants()
+    const controller = new AbortController()
+    getFeaturedRestaurants({ signal: controller.signal })
       .then(setRestaurants)
-      .catch(() => setError('Rekomendasi warung belum dapat dimuat.'))
-      .finally(() => setLoading(false))
+      .catch((error) => { if (!controller.signal.aborted) setError(error.message || 'Rekomendasi warung belum dapat dimuat.') })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [])
 
   function handleSearch(event) {
@@ -47,7 +49,7 @@ function Home() {
       <section className="recommendations" id="rekomendasi">
         <div className="section-heading">
           <div>
-            <span className="section-heading__eyebrow">Pilihan di dekatmu</span>
+            <span className="section-heading__eyebrow">Pilihan berdasarkan ulasan</span>
             <h2>Rekomendasi Warung</h2>
           </div>
           <Link to="/explore">Lihat semua <Icon name="arrow" size={17} /></Link>
@@ -58,7 +60,8 @@ function Home() {
             {[1, 2, 3, 4].map((item) => <div className="restaurant-skeleton" key={item} />)}
           </div>
         )}
-        {error && <p className="state-message">{error}</p>}
+        {error && <p className="state-message" role="alert">{error} <Link to="/explore">Coba jelajahi lagi</Link></p>}
+        {!loading && !error && restaurants.length === 0 && <p className="state-message">Belum ada warung yang dipublikasikan. Cek kembali nanti, ya.</p>}
         {!loading && !error && (
           <div className="restaurant-grid">
             {restaurants.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} />)}

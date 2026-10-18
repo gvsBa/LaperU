@@ -7,4 +7,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: '127.0.0.1',
+    proxy: {
+      '/api': { target: process.env.LAPERU_API_PROXY_TARGET || 'http://127.0.0.1:3000', changeOrigin: true },
+      '/uploads': { target: process.env.LAPERU_API_PROXY_TARGET || 'http://127.0.0.1:3000', changeOrigin: true },
+    },
+  },
 })

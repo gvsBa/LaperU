@@ -46,3 +46,16 @@ Kirim `multipart/form-data` dengan field `image` ke `POST /api/v1/umkm/uploads/i
 - Handoff QA: `../docs/QA_HANDOFF.md`.
 - Payload aman untuk testing: `test-data/qa-payloads.json`.
 - Generator file gambar batas: `npm run qa:generate-images`.
+- Tes sumber tanpa database: `npm test` (tidak menghitung salinan hasil build).
+- Tes database sementara terisolasi Windows/XAMPP: `npm run test:database:local`.
+- Tes pada instance QA yang disiapkan sendiri: `npm run test:integration`; syarat environment dan batas verifikasi ada di `../docs/DATABASE_TESTING.md`.
+- Bahan koordinasi SDD: `../docs/SDD_BACKEND_HANDOFF.md`.
+
+## Menjalankan hasil build
+
+```powershell
+npm run build
+npm start
+```
+
+Entrypoint hasil build: `dist/src/server.js`. Perintah dijalankan dari folder `backend`; dari root tambahkan `--workspace @laperu/backend`.

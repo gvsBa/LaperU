@@ -2,6 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { useState } from 'react'
 import Logo from '../common/Logo'
 import Icon from '../common/Icon'
+import { useAuth } from '../../auth/useAuth.js'
 
 const navItems = [
   { to: '/', label: 'Beranda' },
@@ -12,6 +13,18 @@ const navItems = [
 
 function Navbar() {
   const [open, setOpen] = useState(false)
+  const { user, loading } = useAuth()
+  const actions = loading ? <span className="session-status" role="status">Memuat sesi…</span> : user ? (
+    <>
+      {user.role === 'CUSTOMER' && <Link to="/favorites" className="button button--outline" onClick={() => setOpen(false)}>Favorit</Link>}
+      <Link to="/account" className="button button--dark" onClick={() => setOpen(false)} title={user.fullName}>Akun saya</Link>
+    </>
+  ) : (
+    <>
+      <Link to="/register" className="button button--outline" onClick={() => setOpen(false)}>Daftar</Link>
+      <Link to="/login" className="button button--dark" onClick={() => setOpen(false)}>Masuk</Link>
+    </>
+  )
 
   return (
     <header className="navbar">
@@ -27,13 +40,11 @@ function Navbar() {
             <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setOpen(false)}>{item.label}</NavLink>
           ))}
           <div className="navbar__mobile-actions">
-            <Link to="/register" className="button button--outline">Daftar</Link>
-            <Link to="/login" className="button button--dark">Masuk</Link>
+            {actions}
           </div>
         </nav>
         <div className="navbar__actions">
-          <Link to="/register" className="button button--outline">Daftar</Link>
-          <Link to="/login" className="button button--dark">Masuk</Link>
+          {actions}
         </div>
       </div>
     </header>

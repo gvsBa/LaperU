@@ -1,5 +1,12 @@
 # Handoff Backend ke QA
 
+## Update eksekusi 15 September 2026
+
+- 33 tes sumber dan 16 skenario integrasi API–database lulus. Database nyata untuk run lokal adalah MariaDB 10.4.32/XAMPP, **bukan MySQL 8**.
+- Pengujian ulang: `npm run test:database:local --workspace @laperu/backend`; membuat lalu membersihkan database QA sementara miliknya sendiri.
+- Rincian cakupan, perbaikan, dan batas bukti: `docs/PROGRESS_2026-09-15.md`. Setup QA/MySQL tim: `docs/DATABASE_TESTING.md`.
+- Review workbook/Test Plan pada bagian di bawah adalah catatan sebelumnya, bukan klaim audit ulang dokumen eksternal pada 15 September.
+
 ## Penilaian format saat ini
 
 Workbook Test Case sudah memakai struktur inti yang benar: `Test ID`, `Test Case Scenario`, `Test Steps`, `Test Data`, dan `Expected Result`. Contoh `TC-LOG-01-A/B` juga sudah membedakan skenario positif dan negatif. Agar hasil eksekusi lebih mudah diaudit, tambahkan kolom berikut bila belum ada:

@@ -9,7 +9,13 @@ export function validate(schema: ZodType, source: 'body' | 'params' | 'query' = 
       next(new ApiError(422, 'VALIDATION_ERROR', 'Data yang dikirim belum valid.', result.error.flatten()))
       return
     }
-    req[source] = result.data
+    if (source === 'query') {
+      // Express 5 exposes query through a getter. Keep a parsed request-local
+      // value so defaults/coercion are visible to the downstream handler.
+      Object.defineProperty(req, 'query', { value: result.data, writable: true, configurable: true, enumerable: true })
+    } else {
+      req[source] = result.data
+    }
     next()
   }
 }

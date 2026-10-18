@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
 import Icon from '../common/Icon'
-
-const items = [
-  { to: '/', icon: 'home', label: 'Beranda' },
-  { to: '/explore', icon: 'compass', label: 'Jelajahi' },
-  { to: '/login?next=/favorites', icon: 'heart', label: 'Favorit' },
-  { to: '/register?role=umkm', icon: 'store', label: 'Daftar UMKM' },
-  { to: '/login', icon: 'user', label: 'Akun' },
-]
+import { useAuth } from '../../auth/useAuth.js'
 
 function QuickSidebar() {
+  const { user, loading } = useAuth()
+  const items = [
+    { to: '/', icon: 'home', label: 'Beranda' },
+    { to: '/explore', icon: 'compass', label: 'Jelajahi' },
+    ...(!user || user.role === 'CUSTOMER' ? [{ to: '/favorites', icon: 'heart', label: 'Favorit' }] : []),
+    ...(!user && !loading ? [{ to: '/register?role=umkm', icon: 'store', label: 'Daftar UMKM' }] : []),
+    { to: '/account', icon: 'user', label: user ? 'Akun saya' : 'Akun' },
+  ]
   return (
     <aside className="quick-nav" aria-label="Navigasi cepat">
       <div className="quick-nav__line" />

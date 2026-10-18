@@ -43,7 +43,16 @@ export const operatingHoursSchema = z.object({
     dayOfWeek: z.number().int().min(0).max(6),
     isClosed: z.boolean(),
     openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
-  })).length(7),
+  })).length(7).superRefine((hours, context) => {
+    if (new Set(hours.map((item) => item.dayOfWeek)).size !== 7) {
+      context.addIssue({ code: 'custom', message: 'Setiap hari (0–6) harus muncul tepat satu kali.' })
+    }
+    hours.forEach((item, index) => {
+      if (!item.isClosed && (!item.openTime || !item.closeTime)) {
+        context.addIssue({ code: 'custom', message: 'Jam buka dan tutup wajib untuk hari operasional.', path: [index] })
+      }
+    })
+  }),
 })
 
 export const photoSchema = z.object({

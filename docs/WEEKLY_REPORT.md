@@ -1,29 +1,27 @@
-# Weekly Report
+# Weekly Report — 19 September 2026
 
 Nama: Achmad Bagus Pratama  
 Divisi: Backend
 
 Progress Minggu ini:
 
-- Menentukan stack Backend: Node.js, Express, TypeScript, dan MySQL.
-- Menyiapkan struktur project Backend, konfigurasi environment, CORS, security headers, rate limit, logging, serta format response dan error yang konsisten.
-- Membuat rancangan database dan migration awal untuk akun, UMKM, pengajuan, warung, menu, jam operasional, fasilitas, metode pembayaran, ulasan, favorit, laporan, refresh token, dan audit log.
-- Membuat endpoint awal berdasarkan role Guest, Customer, UMKM, dan Admin, termasuk authentication serta verifikasi akun UMKM.
-- Menyiapkan kontrak API OpenAPI dan dokumentasi integrasi untuk Frontend.
-- Membuat prototype login dan sign-up minimalis hitam-putih serta menghubungkan form ke client API Backend.
-- Menyelaraskan endpoint dengan SRS dan RTM QA terbaru, termasuk enam kategori rating, riwayat ulasan, balasan UMKM, statistik, pengelolaan fasilitas/pembayaran, moderasi Admin, dan unggah gambar maksimal 2 MB.
-- Menyiapkan dummy data QA untuk email, kombinasi password, SQLi/XSS, dan sampel gambar valid/invalid/oversize.
+- Melanjutkan integrasi Backend dengan frontend dari branch `feat/frontend-ui`, meliputi registrasi/login Customer dan UMKM, pengelolaan sesi, serta logout.
+- Menghubungkan pencarian dan filter warung, detail warung/menu, serta simpan dan hapus favorit ke API dengan data dari database.
+- Memperbaiki pengelolaan sesi saat login/logout dan penanganan respons yang terlambat agar data akun sebelumnya tidak digunakan setelah sesi berubah.
+- Menambahkan pengujian otomatis dan dokumentasi integrasi untuk FE/QA. Hasil pengujian lokal: 33 tes Backend, 68 tes frontend, dan 16 skenario integrasi API–database lulus.
 
 Target Minggu Depan:
 
-- Sinkronisasi kontrak API OpenAPI terbaru dengan Frontend, System Analyst, dan QA.
-- Menjalankan migration pada MySQL tim, membuat dummy data, dan menguji alur registrasi, login, pengajuan UMKM, serta approval Admin secara end-to-end.
-- Mulai integrasi endpoint authentication dan daftar warung bersama Frontend.
-- Menyesuaikan endpoint apabila terdapat perubahan flow atau kebutuhan dari SRS, UI/UX, dan Test Case QA.
+- Review integrasi bersama FE dan menyelesaikan pengujian alur melalui browser bersama QA.
+- Melanjutkan integrasi pengajuan UMKM dan persetujuan Admin sesuai flow serta prototype yang disepakati.
+- Koordinasi dengan SA untuk menyelaraskan kebutuhan Backend pada SDD, serta melakukan pengujian MySQL 8 dan kompatibilitas browser.
 
 Kendala:
 
-- MySQL Server belum tersedia pada environment lokal saat setup, sehingga build dan pengujian API tanpa database sudah dilakukan, sedangkan pengujian database end-to-end menunggu instance MySQL aktif.
-- Backend sudah menyediakan filter radius dari koordinat, tetapi UX sumber koordinat/izin lokasi masih perlu dikonfirmasi ke SA/UIUX. Test Plan juga memasukkan lupa password yang belum memiliki Requirement ID di SRS sehingga scope-nya perlu dikonfirmasi ke SA/QA.
+- Pengujian saat ini masih menggunakan MariaDB lokal; MySQL 8 dan Safari belum diuji.
+- Pengujian browser otomatis belum berhasil dijalankan karena kendala lingkungan browser. Dashboard UMKM/Admin juga belum terhubung pada frontend.
+- Hasil integrasi masih lokal dan perlu direview sebelum digabung ke branch tim.
 
-Dokumentasi: https://github.com/gvsBa/LaperU
+---
+
+Catatan bukti: pengujian API–database memakai database QA sementara. Unit tests frontend menggunakan request mock, sehingga tidak menggantikan pengujian browser. Tidak ada klaim deployment atau penerimaan tim selesai. Hasil berada di `D:\ASE LAB\laperu-integration`, belum di-commit/push. Rincian: `PROGRESS_2026-09-19.md`; setup dan endpoint: `FRONTEND_BACKEND_HANDOFF.md`.
