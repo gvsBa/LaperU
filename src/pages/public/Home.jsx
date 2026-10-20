@@ -1,78 +1,148 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Icon from '../../components/common/Icon'
-import RestaurantCard from '../../components/restaurant/RestaurantCard'
-import { getFeaturedRestaurants } from '../../services/restaurantService'
+import menuItems from '../../mocks/menuItems'
+
+const categories = [
+  {
+    icon: '☕',
+    title: 'Sarapan',
+    description: 'Awali hari dengan pilihan sarapan yang praktis dan mengenyangkan.',
+    query: 'sarapan',
+  },
+  {
+    icon: '🍜',
+    title: 'Makanan Utama',
+    description: 'Cari makanan berat favorit buat makan siang sampai malam.',
+    query: 'makanan',
+  },
+  {
+    icon: '🥤',
+    title: 'Minuman',
+    description: 'Pilihan minuman segar buat nemenin aktivitas di kampus.',
+    query: 'minuman',
+  },
+  {
+    icon: '🍰',
+    title: 'Dessert',
+    description: 'Yang manis-manis buat nutup hari atau sekadar ngemil.',
+    query: 'dessert',
+  },
+]
+
+const testimonials = [
+  {
+    quote: '“Makanannya enak dan harganya masih aman buat anak kos.”',
+    text: 'Informasi harga sama lokasinya ngebantu banget pas lagi bingung mau makan di mana.',
+    name: 'Sophie Robson',
+    place: 'Sukabirus, Bojongsoang',
+    initials: 'SR',
+  },
+  {
+    quote: '“Tempatnya bersih dan pilihannya banyak.”',
+    text: 'Jadi lebih gampang cari warung yang sesuai budget tanpa harus muter-muter dulu.',
+    name: 'Matt Cannon',
+    place: 'Ciganitri, Bojongsoang',
+    initials: 'MC',
+  },
+  {
+    quote: '“Menu dan fasilitas warungnya lengkap.”',
+    text: 'Bisa cek rating, jarak, sampai metode pembayaran sebelum datang ke warungnya.',
+    name: 'Andy Smith',
+    place: 'Sukapura, Bojongsoang',
+    initials: 'AS',
+  },
+]
 
 function Home() {
-  const [query, setQuery] = useState('')
-  const [restaurants, setRestaurants] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    getFeaturedRestaurants()
-      .then(setRestaurants)
-      .catch(() => setError('Rekomendasi warung belum dapat dimuat.'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  function handleSearch(event) {
-    event.preventDefault()
-    const keyword = query.trim()
-    navigate(keyword ? `/explore?q=${encodeURIComponent(keyword)}` : '/explore')
-  }
+  const featuredMenus = menuItems.slice(0, 4)
 
   return (
     <>
-      <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__overlay" />
-        <div className="hero__content">
-          <span className="hero__eyebrow">Kuliner sekitar Telkom University</span>
-          <h1 id="hero-title">Makan enak,<br />nggak pakai bingung.</h1>
-          <p>Temukan warung favorit sesuai selera, jarak, harga, dan fasilitas yang kamu butuhkan.</p>
-          <form className="search-box" onSubmit={handleSearch} role="search">
-            <Icon name="search" size={20} />
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari warung atau menu..." aria-label="Cari warung atau menu" />
-            <button type="submit">Cari</button>
-          </form>
-          <div className="hero__actions">
-            <Link to="/explore" className="button button--primary">Jelajahi Warung</Link>
-            <a href="#rekomendasi" className="button button--glass">Lihat Rekomendasi</a>
-          </div>
+      <section className="home-hero" aria-labelledby="home-hero-title">
+        <div className="home-hero__content">
+          <span className="home-hero__heart home-hero__heart--one">
+            <Icon name="heart" size={23} filled />
+          </span>
+          <span className="home-hero__heart home-hero__heart--two">
+            <Icon name="heart" size={20} filled />
+          </span>
+          <span className="home-hero__heart home-hero__heart--three">
+            <Icon name="heart" size={21} filled />
+          </span>
+
+          <h1 id="home-hero-title">Kuliner enak buat<br />hari yang lebih nikmat.</h1>
+          <p>Temukan menu dan warung favoritmu di sekitar Telkom University.</p>
+
+          <Link to="/explore" className="home-hero__button">
+            Jelajahi Menu
+          </Link>
         </div>
       </section>
 
-      <section className="recommendations" id="rekomendasi">
-        <div className="section-heading">
-          <div>
-            <span className="section-heading__eyebrow">Pilihan di dekatmu</span>
-            <h2>Rekomendasi Warung</h2>
-          </div>
-          <Link to="/explore">Lihat semua <Icon name="arrow" size={17} /></Link>
-        </div>
+      <section className="home-featured" id="rekomendasi">
+        <div className="home-featured__grid">
+          {featuredMenus.map((item) => (
+            <article className="home-menu-card" key={item.id}>
+              <div className="home-menu-card__media">
+                <Link to={`/restaurants/${item.restaurantId}`} aria-label={`Lihat ${item.name}`}>
+                  <div className={`home-menu-card__image menu-sprite menu-sprite--${item.sprite} menu-sprite--${item.position}`} />
+                </Link>
 
-        {loading && (
-          <div className="restaurant-grid" aria-label="Memuat rekomendasi">
-            {[1, 2, 3, 4].map((item) => <div className="restaurant-skeleton" key={item} />)}
-          </div>
-        )}
-        {error && <p className="state-message">{error}</p>}
-        {!loading && !error && (
-          <div className="restaurant-grid">
-            {restaurants.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} />)}
-          </div>
-        )}
+                <Link
+                  to="/login?next=/favorites"
+                  className="home-menu-card__favorite"
+                  aria-label={`Simpan ${item.name} ke favorit`}
+                >
+                  <Icon name="heart" size={18} />
+                </Link>
+              </div>
+
+              <div className="home-menu-card__body">
+                <div>
+                  <h2>{item.name}</h2>
+                  <p>{item.restaurant}</p>
+                </div>
+                <strong>Rp{item.price.toLocaleString('id-ID')}</strong>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
-      <section className="about-strip" id="tentang">
-        <div>
-          <span className="section-heading__eyebrow">Kenapa LaperU?</span>
-          <h2>Satu tempat buat cari kuliner sekitar kampus.</h2>
+      <section className="home-categories" id="menu">
+        <h2>Browse Our Menu</h2>
+
+        <div className="home-categories__grid">
+          {categories.map((category) => (
+            <article className="home-category-card" key={category.title}>
+              <span className="home-category-card__icon" aria-hidden="true">{category.icon}</span>
+              <h3>{category.title}</h3>
+              <p>{category.description}</p>
+              <Link to={`/explore?q=${category.query}`}>Jelajahi Menu</Link>
+            </article>
+          ))}
         </div>
-        <p>LaperU membantu mahasiswa menemukan tempat makan berdasarkan menu, harga, jarak, rating, fasilitas, dan status buka. Informasi warung dikelola langsung oleh UMKM agar tetap relevan.</p>
-        <Link to="/register?role=umkm" className="button button--dark">Daftarkan Warung</Link>
+      </section>
+
+      <section className="home-testimonials" id="tentang">
+        <h2>What Our Customers Say</h2>
+
+        <div className="home-testimonials__grid">
+          {testimonials.map((testimonial) => (
+            <article className="home-testimonial-card" key={testimonial.name}>
+              <h3>{testimonial.quote}</h3>
+              <p>{testimonial.text}</p>
+
+              <div className="home-testimonial-card__person">
+                <span>{testimonial.initials}</span>
+                <div>
+                  <strong>{testimonial.name}</strong>
+                  <small>{testimonial.place}</small>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </>
   )

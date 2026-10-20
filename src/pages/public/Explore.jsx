@@ -5,6 +5,7 @@ import restaurants from '../../mocks/restaurants'
 import EmptySearchIllustration from '../../components/explore/EmptySearchIllustration'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QuickSidebar from '../../components/layout/QuickSidebar'
+import SiteFooter from '../../components/layout/SiteFooter'
 const categories = [
   'Semua',
   'Masakan Sunda',
@@ -343,8 +344,8 @@ function Explore() {
   </p>
 )}
       </main>
+      <SiteFooter />
     </div>
   )
 }
-
 export default Explore

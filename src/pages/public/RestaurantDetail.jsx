@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import restaurants from '../../mocks/restaurants'
 import menuItems from '../../mocks/menuItems'
 import profileAvatar from '../../assets/images/profile-avatar.webp'
+import SiteFooter from '../../components/layout/SiteFooter'
 
 const detailExtras = {
   1: { address: 'Jl. Telekomunikasi No. 1, Sukapura', hours: '09.00–22.00', reviewCount: 120 },
@@ -226,6 +227,7 @@ function RestaurantDetail() {
           </section>
         )}
       </main>
+      <SiteFooter />
 
       {routeDialogOpen && (
         <div
