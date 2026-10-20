@@ -1,16 +1,14 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../common/Logo'
 import Icon from '../common/Icon'
 import { useAuth } from '../../auth/useAuth.js'
 
-function ExploreHeader({ query, onQueryChange, onSearch }) {
-  const [menuOpen, setMenuOpen] = useState(false)
+function ExploreHeader({ query, onQueryChange, onSearch, isSidebarOpen, onMenuToggle }) {
   const { user, loading } = useAuth()
 
   return (
     <header className="explore-header">
-      <button className="explore-header__menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Buka menu" aria-expanded={menuOpen}>
+      <button className="explore-header__menu" type="button" onClick={onMenuToggle} aria-label={isSidebarOpen ? 'Tutup navigasi' : 'Buka navigasi'} aria-expanded={isSidebarOpen}>
         <Icon name="menu" size={22} />
       </button>
       <Logo />
@@ -33,14 +31,6 @@ function ExploreHeader({ query, onQueryChange, onSearch }) {
         )}
       </div>
 
-      {menuOpen && (
-        <nav className="explore-drawer">
-          <Link to="/" onClick={() => setMenuOpen(false)}>Beranda</Link>
-          <Link to="/explore" onClick={() => setMenuOpen(false)}>Jelajahi</Link>
-          {(!user || user.role === 'CUSTOMER') && <Link to="/favorites" onClick={() => setMenuOpen(false)}>Favorit</Link>}
-          <Link to="/account" onClick={() => setMenuOpen(false)}>{user ? 'Akun saya' : 'Masuk ke akun'}</Link>
-        </nav>
-      )}
     </header>
   )
 }

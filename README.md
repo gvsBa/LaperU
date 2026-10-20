@@ -1,93 +1,99 @@
 # LaperU
 
-Integrasi lokal frontend tim (`feat/frontend-ui`, commit `14fc231`) dengan Backend REST API LaperU. Folder kerja integrasi: `D:\ASE LAB\laperu-integration`; project asli di `D:\ASE LAB\laperu-web` tidak diganti. Perubahan integrasi belum dipush atau digabung ke branch tim.
+Website informasi kuliner sekitar Telkom University: Guest, Customer, UMKM, dan Admin. Versi persiapan pengumpulan **22 Oktober 2026**; pembaruan **20 Oktober 2026**.
 
-Frontend yang sudah terhubung: registrasi Customer/UMKM, login, pemulihan sesi, logout, pencarian/filter warung, detail/menu/ulasan, dan favorit Customer. Dashboard pengelolaan UMKM/Admin dan formulir penulisan ulasan belum diimplementasikan pada frontend ini.
+Frontend tim dari `feat/frontend-ui` sampai commit `05dc7a0` digabung dengan integrasi Backend. Desain logo, Explore, dan detail berasal dari pekerjaan FE; autentikasi, data API, serta layar pengelolaan ditambahkan pada branch `release/submission-2026-10-22`. Folder kerja lokal: `D:\ASE LAB\laperu-integration`. Folder lama `laperu-web` tidak diganti.
 
-## Stack
+## Stack dan cakupan
 
-- Frontend aktif: React JSX, React Router, Vite, Tailwind; file TypeScript lama masih tersimpan tetapi bukan entry UI aktif.
-- Backend: Node.js, Express, TypeScript.
-- Target database: MySQL 8; pengujian database lokal yang sudah dijalankan menggunakan MariaDB 10.4.32, bukan bukti kompatibilitas MySQL 8.
-- Authentication: access token JWT dan rotating refresh token melalui cookie HTTP-only.
+- Frontend: React JSX, React Router, Vite, Tailwind.
+- Backend: Express, TypeScript, Zod, mysql2; REST API `/api/v1`.
+- Database pengumpulan: **MariaDB lokal melalui XAMPP**, bukan database cloud. Pengujian menggunakan MariaDB 10.4.32. MySQL 8 belum diverifikasi.
+- Sesi: JWT access token di memori dan rotating refresh cookie HttpOnly.
+- Guest: pencarian, kategori/budget/status buka/rating/fasilitas/pembayaran, pagination, detail/menu/ulasan dan rute Maps.
+- Customer: registrasi/login, favorit, tulis/edit/hapus ulasan enam aspek, riwayat ulasan, laporan.
+- UMKM: draft/foto/pengajuan/revisi, profil, menu/harga/ketersediaan, jadwal, fasilitas/pembayaran, galeri, balasan dan statistik.
+- Admin: pemeriksaan/keputusan pengajuan, pengguna, profil/visibilitas warung, kategori/fasilitas, laporan/moderasi dan audit log.
 
-## Menjalankan project
+## Jalankan dari VS Code — Windows
 
-1. Pasang dependensi dari root:
+Buka folder project, lalu **Terminal → New Terminal**. Gunakan `npm.cmd` jika PowerShell menolak `npm.ps1`. Lingkungan yang diuji memakai Node 24: **24.15.0 untuk aplikasi, seed dan suite database/browser**, serta **24.19.0 untuk pemeriksaan `check`**. Pada 24.15.0, CLI validasi OpenAPI sempat berakhir dengan assertion libuv; pada 24.19.0, seed melalui tsx sempat tertahan. Karena itu jangan menganggap satu versi sudah lulus seluruh perintah. Detail ada di dokumen status. Tidak ada perubahan instalasi Node global pada laptop.
 
-```powershell
-npm ci
-```
-
-2. Siapkan environment:
-
-```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
-```
-
-3. Isi `backend/.env` dengan koneksi database development yang benar, secret JWT acak, serta email/password admin sendiri. Jangan gunakan kredensial contoh untuk deployment. Pastikan database aktif, kemudian buat tabel dan data awal pada database development tersebut:
+1. Instal dependency dan siapkan konfigurasi:
 
 ```powershell
-npm run db:migrate --workspace @laperu/backend
-npm run db:seed --workspace @laperu/backend
+npm.cmd ci
+npm.cmd run setup:local
 ```
 
-4. Jalankan Frontend dan Backend bersama-sama:
+Setup hanya membuat `.env` yang belum ada; konfigurasi lama tidak ditimpa. Secret dan password Admin baru dihasilkan acak, disimpan di `backend/.env`, dan tidak dicetak ke terminal.
+
+2. Buka XAMPP Control Panel dan **Start MySQL**. Apache tidak diperlukan untuk React/Express. Pastikan `backend/.env` menunjuk database lokal yang benar; default setup memakai root lokal tanpa password. Jika root mempunyai password/port berbeda, sesuaikan `DATABASE_URL`. Jangan menggunakan konfigurasi lokal ini untuk server publik.
+
+3. Buat tabel dan data referensi:
 
 ```powershell
-npm run dev:all
+npm.cmd run db:migrate --workspace @laperu/backend
+npm.cmd run db:seed --workspace @laperu/backend
 ```
 
-- Frontend: `http://127.0.0.1:5173/login`
-- Backend: `http://127.0.0.1:3000/api/v1`
-- Health check: `http://127.0.0.1:3000/api/v1/health`
+Migrasi memakai `CREATE TABLE IF NOT EXISTS`; tidak menghapus tabel lama. Seed menambah Admin jika belum ada dan **tidak mengganti password/status akun yang sudah ada**. Mengedit `ADMIN_PASSWORD` setelah akun dibuat tidak mereset password akun tersebut.
 
-Frontend memakai URL relatif `/api/v1`; Vite meneruskan `/api` dan `/uploads` ke Backend lokal. Jangan berganti antara `localhost` dan `127.0.0.1` saat menguji sesi cookie. Proxy Vite hanya untuk development; deployment perlu reverse proxy HTTPS atau konfigurasi API/origin/cookie yang ditinjau ulang.
-
-Seed menambahkan admin serta kategori/fasilitas/metode pembayaran, bukan restoran nyata. Hasil pencarian kosong sebelum warung disetujui adalah normal.
-
-## Dokumentasi
-
-- Kontrak API: `backend/openapi.yaml`
-- Petunjuk Backend: `backend/README.md`
-- Tema dan target performa: `docs/THEME_AND_PERFORMANCE.md`
-- Weekly report Bagus: `docs/WEEKLY_REPORT.md`
-- Handoff integrasi FE–BE: `docs/FRONTEND_BACKEND_HANDOFF.md`
-- Bukti pengujian pekan ini: `docs/PROGRESS_2026-09-19.md`
-- Traceability SRS ke Backend: `docs/SRS_BACKEND_TRACEABILITY.md`
-- Handoff dan data uji QA: `docs/QA_HANDOFF.md`, `backend/test-data/`
-
-## Pemeriksaan kualitas
+4. Opsional, siapkan data presentasi fiktif:
 
 ```powershell
-npm run typecheck:all
-npm run lint
-npm run lint:api
-npm run test:backend
-npm run test:frontend
-npm run build:all
+npm.cmd run db:seed:demo --workspace @laperu/backend
 ```
 
-`typecheck:all` memeriksa Backend dan file TypeScript lama; bukan pemeriksaan tipe menyeluruh atas frontend JSX aktif. Frontend JSX diperiksa melalui lint, build, serta tes API client/service.
+Script hanya menerima database lokal `laperu` atau `laperu_test_*`, tidak berjalan di production, dan tidak menimpa akun berbeda. Membuat dua akun demo, satu warung berlabel demo, tiga menu, dan jadwal. Aman dijalankan ulang untuk dataset yang sama. Email/password demo disimpan di `backend/.demo-accounts.local.json` yang diabaikan Git. Kredensial Admin tetap ada di `backend/.env`.
 
-Pengujian database sementara terisolasi (memerlukan binary MariaDB/XAMPP, tidak menyentuh database development):
+Data demo disiapkan langsung untuk presentasi; status approved pada data demo **bukan bukti verifikasi usaha nyata**. Untuk mendemokan proses persetujuan, daftarkan UMKM baru melalui website.
+
+5. Jalankan aplikasi:
 
 ```powershell
-npm run test:database:local --workspace @laperu/backend
+npm.cmd run dev:all
 ```
 
-Pengujian browser dengan database sementara dibangun ulang sebelum dijalankan:
+- Website: http://127.0.0.1:5173
+- Login: http://127.0.0.1:5173/login
+- Koneksi database: http://127.0.0.1:3000/api/v1/health/database
+- Dashboard: `/umkm`, `/admin`; hanya role yang sesuai dapat mengakses.
+- Tekan **Ctrl+C** pada terminal untuk menghentikan FE/BE. Hentikan MySQL melalui XAMPP ketika selesai.
+
+Gunakan `127.0.0.1` secara konsisten, bukan bergantian dengan `localhost`. Port Vite dikunci 5173 agar cookie/CORS tidak berubah diam-diam. Jika port terpakai, hentikan proses project lama atau sesuaikan konfigurasi secara eksplisit.
+
+## Pemeriksaan
 
 ```powershell
-npx playwright install chromium
-npm run test:browser:local
+npm.cmd run check
+npm.cmd audit
+npx.cmd playwright install chromium
+npm.cmd run test:browser:local
 ```
 
-Status hasil dan batas browser yang benar-benar diuji dicatat di dokumen progress, bukan diasumsikan dari tersedianya skrip. Semua data uji sementara dihapus oleh runner setelah selesai.
+`check` menjalankan typecheck, lint, validasi OpenAPI, unit tests FE/BE, dan build keduanya. Typecheck frontend hanya mencakup file TS lama; JSX aktif diperiksa lint/build dan tes browser, bukan diklaim sepenuhnya typed.
 
-Untuk membuat sampel gambar valid, tidak valid, dan oversize bagi QA:
+`test:browser:local` membuat database QA terisolasi dengan binary XAMPP, mengulang migrasi/seed, menjalankan tes API–database dan browser, lalu membersihkan instance sementara tersebut. Tidak menghapus database development. Bukti browser tersimpan di `test-results/` (diabaikan Git). Default browser adalah Chromium headless shell. Untuk Chrome terpasang:
 
 ```powershell
-npm run qa:generate-images --workspace @laperu/backend
+$env:LAPERU_BROWSER_CHANNEL = 'chrome'
+npm.cmd run test:browser:local
+Remove-Item Env:LAPERU_BROWSER_CHANNEL
 ```
+
+## Dokumen pengumpulan
+
+- [Status pengumpulan dan hasil uji](docs/SUBMISSION_STATUS.md)
+- [Panduan demo dan checklist 22 Oktober](docs/SUBMISSION_GUIDE.md)
+- [Weekly report](docs/WEEKLY_REPORT.md)
+- [Handoff FE–BE](docs/FRONTEND_BACKEND_HANDOFF.md)
+- [SDD Backend](docs/SDD_BACKEND_HANDOFF.md)
+- [Kontrak API](backend/openapi.yaml)
+- [Traceability SRS](docs/SRS_BACKEND_TRACEABILITY.md)
+- [Handoff QA](docs/QA_HANDOFF.md)
+- [Target performa](docs/THEME_AND_PERFORMANCE.md)
+
+Jangan ikut mengumpulkan `.env`, kredensial demo, `node_modules`, data directory XAMPP, atau log privat. Source/schema bukan dump data pengguna. Backup database privat dilakukan terpisah sebelum demo.
+
+Batas: tidak ada pemulihan password/email verification, pemesanan/pembayaran online, notifikasi, atau klaim production deployment. Safari/perangkat fisik dan uji 50 sesi pengguna bersamaan belum disahkan. Filter radius tersedia pada API, tetapi kontrol geolokasi dan pilihan sortir baru FE belum dihubungkan; UI menampilkan urutan rating/jumlah ulasan dari server tanpa menyimulasikan hasil.

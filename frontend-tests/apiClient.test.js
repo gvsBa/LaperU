@@ -312,11 +312,11 @@ describe('memory session and refresh', () => {
 })
 
 describe('safe return destination', () => {
-  it.each(['/explore?category=nasi', '/favorites', '/account#profile', '/restaurants/warung-qa?tab=menu'])('mengizinkan tujuan internal %s', (path) => {
+  it.each(['/explore?category=nasi', '/favorites', '/account#profile', '/admin', '/umkm', '/reviews', '/restaurants/warung-qa?tab=menu'])('mengizinkan tujuan internal %s', (path) => {
     expect(auth.safeNextPath(path)).toBe(path)
   })
 
-  it.each(['https://evil.test', '//evil.test', '/\\evil.test', '/login', '/register', '/admin', '/explore/../login', '/%65xplore', '/restaurants/%2e%2e', '/restaurants//evil', '/explore\n'])('menolak tujuan tidak aman atau di luar allowlist %s', (path) => {
+  it.each(['https://evil.test', '//evil.test', '/\\evil.test', '/login', '/register', '/admin/../account', '/explore/../login', '/%65xplore', '/restaurants/%2e%2e', '/restaurants//evil', '/explore\n'])('menolak tujuan tidak aman atau di luar allowlist %s', (path) => {
     expect(auth.safeNextPath(path)).toBe('/explore')
   })
 })

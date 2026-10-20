@@ -1,5 +1,7 @@
 # Tema dan Target Performance LaperU
 
+**Pembaruan 19 Oktober 2026:** tema di bawah adalah baseline awal sebelum integrasi desain FE tim. UI aktif mengikuti logo, Explore, dan detail warung dari branch FE sampai `05dc7a0`, termasuk aksen warna desain tersebut; layar pengelolaan memakai panel sederhana dan form responsif. Tidak mengklaim seluruh UI aktif monokrom. Angka performa di dokumen ini adalah **target**, bukan hasil pengukuran. Status verifikasi aktual ada di `SUBMISSION_STATUS.md`.
+
 ## TEMA
 
 **Nama tema:** Minimal Monochrome
@@ -36,7 +38,7 @@
 - JavaScript awal Frontend: `≤ 200 KB gzip`.
 - Response API p95 untuk baca data: `≤ 500 ms`.
 - Response API p95 untuk operasi tulis: `≤ 800 ms`.
-- Semua daftar menggunakan pagination dan foto menggunakan lazy loading pada tahap implementasi katalog.
+- Target pagination untuk daftar panjang. Implementasi kini: Explore, pengguna/pengajuan/warung Admin, dan riwayat ulasan Customer dipaginasi. Beberapa endpoint masih berupa daftar terbatas/tanpa pagination; lihat handoff integrasi.
 
 **Kriteria penerimaan SRS (batas wajib):**
 

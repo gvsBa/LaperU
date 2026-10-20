@@ -13,7 +13,8 @@
     "test:database:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local-database.ps1",
     "qa:generate-images": "tsx scripts/generate-qa-images.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

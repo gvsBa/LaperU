@@ -1,5 +1,14 @@
 # Handoff Backend ke QA
 
+## Update 20 Oktober 2026
+
+- Halaman UMKM/Admin, alur revisi-persetujuan, ulasan Customer dan moderasi sudah dihubungkan. Sumber status terkini: `SUBMISSION_STATUS.md`.
+- Browser smoke sekarang menjalankan 18 skenario end-to-end memakai database QA nyata terisolasi. Bukan pengganti sign-off test case tim.
+- Eksekusi 19 Oktober lulus pada Chromium headless 153.0.8010.12 dan Chrome terpasang 155.0.8059.82 (headless). Versi Node dan kendala environment dicatat di dokumen status.
+- Tambahan unit tests: upload multipart/ukuran/format, payload ulasan, dan endpoint privat.
+- Database pengumpulan lokal XAMPP/MariaDB. Safari, perangkat fisik, dan 50 sesi pengguna bersamaan belum diverifikasi.
+- Catatan September di bawah dipertahankan sebagai riwayat; tidak berarti dokumen eksternal tim telah diperiksa ulang hari ini.
+
 ## Update eksekusi 15 September 2026
 
 - 33 tes sumber dan 16 skenario integrasi API–database lulus. Database nyata untuk run lokal adalah MariaDB 10.4.32/XAMPP, **bukan MySQL 8**.

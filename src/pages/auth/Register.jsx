@@ -61,7 +61,7 @@ function Register() {
     }
   }
 
-  if (!loading && user && !pending) return <Navigate to="/account" replace />
+  if (!loading && user && !pending) return <Navigate to={user.role === 'CUSTOMER' ? destination : '/account'} replace />
 
   return (
     <AuthLayout title={isUmkm ? 'Daftar sebagai pemilik warung' : 'Buat akun mahasiswa'} subtitle={isUmkm ? 'Buat akun UMKM. Warung baru tampil setelah pengajuan disetujui admin.' : 'Daftar dan temukan tempat makan favoritmu.'}>
@@ -91,7 +91,7 @@ function Register() {
           <label>Nama pemilik<input name="ownerName" type="text" value={form.ownerName} onChange={updateField} placeholder="Nama pemilik usaha" maxLength={120} disabled={pending || loading} required /></label>
           <label>Nomor telepon usaha<input name="phone" type="tel" value={form.phone} onChange={updateField} placeholder="08xxxxxxxxxx" autoComplete="tel" maxLength={30} disabled={pending || loading} required /></label>
           <label>Alamat warung<textarea name="address" value={form.address} onChange={updateField} placeholder="Jalan, nomor, dan wilayah warung" autoComplete="street-address" maxLength={500} rows={3} disabled={pending || loading} required /></label>
-          <p className="auth-help">Pendaftaran ini membuat akun dan draft pengajuan. Halaman untuk melengkapi foto serta mengirim pengajuan masih dalam pengembangan.</p>
+          <p className="auth-help">Pendaftaran membuat akun dan draft pengajuan. Lengkapi foto lalu kirim pengajuan melalui dashboard UMKM.</p>
         </>}
         {message && <p className="auth-form__message" role="alert">{message}</p>}
         <button className="auth-submit" type="submit" disabled={pending || loading}>{pending ? 'Membuat akun…' : loading ? 'Memuat sesi…' : isUmkm ? 'Buat akun UMKM' : 'Buat akun mahasiswa'}</button>

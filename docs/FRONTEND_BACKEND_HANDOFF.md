@@ -1,116 +1,55 @@
 # Handoff integrasi Frontend–Backend LaperU
 
-Status catatan: **19 September 2026**. Basis integrasi: commit `14fc231`, dengan perubahan lokal di `D:\ASE LAB\laperu-integration`. Saat catatan dibuat, worktree berada pada detached HEAD; perubahan integrasi **belum di-commit/push**. Folder asli `D:\ASE LAB\laperu-web` tetap dipertahankan dan bukan folder untuk menjalankan hasil integrasi ini.
+Diperbarui **19 Oktober 2026**, untuk pengumpulan **22 Oktober 2026**. Basis FE tim: `05dc7a0` (detail warung, 9 Oktober), dengan integrasi Backend pada branch `release/submission-2026-10-22`. Catatan pengujian September tetap tersedia di `PROGRESS_2026-09-19.md`; jangan gunakan angka historis sebagai hasil terbaru.
 
-## Yang sudah dihubungkan
+## Menjalankan
 
-- Login serta registrasi Customer dan UMKM memakai API, bukan sekadar pindah halaman.
-- Beranda mengambil rekomendasi dari daftar warung; Guest dapat mencari, memfilter kategori/budget/status buka, mengganti halaman hasil, dan membuka detail warung.
-- Detail menampilkan menu, harga, jam, fasilitas, pembayaran, foto, ulasan, dan tautan Maps dari respons Backend.
-- Customer dapat menyimpan/menghapus favorit di detail serta melihat daftar favorit miliknya.
-- Halaman `/account` menampilkan identitas, jenis/status akun dari sesi asli, serta logout.
-- Ada tampilan memuat, data kosong, kegagalan request, dan jalur mencoba kembali. Tidak ada penggantian respons gagal dengan daftar warung mock.
+Ikuti README root: `npm ci` → `npm run setup:local` → Start MySQL XAMPP → migration → seed → `npm run dev:all`. Database pengumpulan lokal MariaDB/XAMPP. Gunakan http://127.0.0.1:5173; backend pada port 3000.
 
-Desain utama Frontend rekan tim dipertahankan. `?mode=account` bukan mekanisme autentikasi dan tidak memberi akses akun.
+Seed biasa tidak mereset akun yang sudah ada. Seed demo opsional menambahkan data fiktif dan menyimpan kredensial di file privat yang tidak di-commit. Folder lama `D:\ASE LAB\laperu-web` tetap dipertahankan.
 
-## Menjalankan di Windows / VS Code
+## Kontrak dan halaman
 
-Prasyarat: Node.js/npm, database MySQL atau MariaDB lokal yang berjalan, dan kredensial database development. Jangan memakai database produksi untuk setup/seed.
+Prefix endpoint: `/api/v1`. Berhasil: `{success:true,data:...}`; gagal: `{success:false,code,message,details?}`.
 
-Jalankan dari terminal PowerShell:
-
-```powershell
-Set-Location -LiteralPath 'D:\ASE LAB\laperu-integration'
-npm ci
-if (-not (Test-Path -LiteralPath '.env')) { Copy-Item -LiteralPath '.env.example' -Destination '.env' }
-if (-not (Test-Path -LiteralPath 'backend\.env')) { Copy-Item -LiteralPath 'backend\.env.example' -Destination 'backend\.env' }
-```
-
-Buka folder `D:\ASE LAB\laperu-integration` melalui **File → Open Folder** di VS Code. Sesuaikan file environment, tanpa menimpa konfigurasi yang sudah ada:
-
-| File | Konfigurasi lokal yang perlu diperiksa |
+| Halaman | Sumber data / aksi |
 |---|---|
-| `.env` | `VITE_API_BASE_URL=/api/v1` |
-| `backend/.env` | `DATABASE_URL` sesuai akun, port, dan nama database development milik tim |
-| `backend/.env` | `PORT=3000`, `NODE_ENV=development` |
-| `backend/.env` | `FRONTEND_ORIGIN=http://127.0.0.1:5173` jika browser memakai alamat tersebut |
-| `backend/.env` | `PUBLIC_API_ORIGIN=http://127.0.0.1:3000` agar URL unggahan menunjuk Backend lokal yang benar |
-| `backend/.env` | Ganti contoh `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` dan kredensial Admin; jangan commit file `.env` |
+| Login/registrasi | `/auth/login`, `/auth/register/customer`, `/auth/register/umkm` |
+| Beranda / Explore | `/warungs`, `/meta`; kategori, harga maksimum, rating minimum, fasilitas, pembayaran, buka, pagination |
+| `/restaurants/:slug` | `GET /warungs/:slug`; menu/harga/foto/jadwal/rating/ulasan/Maps |
+| `/favorites` | `/customer/favorites`, tambah/hapus berdasarkan UUID warung |
+| `/reviews` dan form detail | `/customer/reviews`; membuat, mengubah, menghapus ulasan sendiri |
+| Laporan pada detail | `POST /customer/reports`; target WARUNG atau REVIEW |
+| `/umkm` | pengajuan/foto/revisi, profil/menu/jadwal/fasilitas/pembayaran/galeri/balasan/statistik |
+| `/admin` | dashboard, pagination pengajuan/pengguna/warung, keputusan, laporan, data master, audit |
+| `/account` | identitas sesi, navigasi sesuai role dan logout |
 
-Kemudian:
+Detail menggunakan **slug**, bukan ID numerik dari mock FE. Mutasi memakai UUID dari respons, bukan slug. Pengajuan Admin memakai **submissionId**, bukan profileId. Daftar warung menggunakan `items/pagination`; favorit berupa array. Nilai SQL boolean/numerik dinormalisasi di service frontend. Data kosong/gagal tidak diganti mock.
 
-```powershell
-npm run db:migrate --workspace @laperu/backend
-npm run db:seed --workspace @laperu/backend
-npm run dev:all
-```
+Logo dan gaya halaman FE terbaru diintegrasikan; kontrol yang belum memiliki integrasi tidak ditampilkan seolah sudah berfungsi. Filter/sort lokal mock dari FE diganti filter server; urutan saat ini rating/jumlah ulasan, bukan sortir harga/jarak di client.
 
-Buka `http://127.0.0.1:5173`. Seed menyiapkan data referensi serta Admin, **bukan daftar warung demo**; daftar kosong pada database baru adalah hasil yang wajar. Seed juga memperbarui password/status Admin untuk email yang dikonfigurasi, sehingga hanya jalankan pada database development/QA yang memang dituju.
+## Sesi dan batas akses
 
-### Proxy dan konsistensi alamat
+- Access token di memori, refresh cookie HttpOnly; tidak menyimpan token di localStorage.
+- Client menyertakan credentials dan token pada endpoint privat. Refresh berbagi satu pekerjaan untuk mencegah rotasi ganda.
+- Generasi sesi menolak respons lama setelah logout/pergantian akun.
+- Parameter `next` mengizinkan hanya route internal yang dikenal, termasuk Admin/UMKM/riwayat ulasan. Role gate UI tidak menggantikan otorisasi Backend.
+- UMKM baru: akun PENDING dan pengajuan DRAFT. Lengkapi identitas/foto lalu kirim menjadi PENDING.
+- Admin meminta REVISION, menolak REJECTED, atau menyetujui APPROVED. Hanya DRAFT/REVISION dapat diedit/dikirim ulang; penolakan bukan otomatis membuka pengajuan baru.
+- Persetujuan mengaktifkan akun dan membuat warung publik. Status akun, pengajuan, publikasi warung, dan buka/tutup adalah hal berbeda.
+- Laporan RESOLVED tidak otomatis menyembunyikan ulasan. Tindakan moderasi terpisah.
+- Penghapusan menu melalui flag aktif; penghapusan ulasan menghapus balasan terkait.
 
-- Browser memanggil `/api/v1` pada origin Frontend. Vite meneruskan `/api` dan `/uploads` ke `http://127.0.0.1:3000`.
-- `localhost` dan `127.0.0.1` adalah host berbeda untuk browser/cookie. Gunakan satu host secara konsisten dan cocokkan `FRONTEND_ORIGIN` dengan URL browser **beserta portnya**. Jika Vite memilih port selain `5173`, perbarui konfigurasi terkait lalu mulai ulang.
-- Jika Backend menggunakan port lain, set `$env:LAPERU_API_PROXY_TARGET = 'http://127.0.0.1:PORT_BACKEND'` pada terminal sebelum menjalankan Vite; sesuaikan `PORT` dan `PUBLIC_API_ORIGIN` Backend juga. Variabel proxy dibaca dari environment proses, bukan otomatis dari isi `.env` oleh konfigurasi ini.
-- Proxy ini untuk development. Hosting hasil `dist` memerlukan reverse proxy `/api` dan `/uploads` sendiri, atau konfigurasi origin API, cookie, HTTPS, dan CORS yang disepakati. `npm run preview` bukan setup deployment API.
+## Lingkungan dan batas
 
-## Pemetaan halaman ke API
+Proxy Vite meneruskan `/api` dan `/uploads`; proxy bukan konfigurasi deployment. Backend upload menyimpan gambar lokal. Seed demo tidak membuat usaha nyata.
 
-Semua endpoint berikut memakai prefix `/api/v1`.
+Jadwal mengikuti waktu server database lokal. Statistik kunjungan menghitung permintaan detail, bukan pengunjung unik. Admin audit menampilkan maksimal 200 aktivitas; ulasan pemilik maksimal 200 dan ulasan publik maksimal 50. Tidak semua daftar dipaginasi.
 
-| Halaman / aksi | Endpoint | Catatan integrasi |
-|---|---|---|
-| `/login` | `POST /auth/login` | JSON `email`, `password`; kesalahan login ditampilkan |
-| `/register` | `POST /auth/register/customer` | JSON `fullName`, `email`, `password` |
-| `/register?role=umkm` | `POST /auth/register/umkm` | Tambahan `businessName`, `ownerName`, `phone`, `address`; membuat akun PENDING dan draft pengajuan |
-| Memulihkan sesi / logout | `POST /auth/refresh`, `POST /auth/logout` | Refresh cookie dikirim browser; `/account` memakai identitas dari respons sesi |
-| Beranda | `GET /warungs?limit=4` | Rekomendasi mengikuti urutan hasil Backend, bukan personalisasi |
-| `/explore` | `GET /meta`, `GET /warungs` | UI saat ini mengirim `q`, `category`, `maxPrice`, `openNow`, `page`, `limit=12` |
-| `/restaurants/:slug` | `GET /warungs/:slug` | Detail memakai **slug**, bukan UUID warung |
-| `/favorites` dan status favorit di detail | `GET /customer/favorites` | Privat, role CUSTOMER |
-| Simpan / hapus favorit | `POST /customer/favorites/:id`, `DELETE /customer/favorites/:id` | `id` adalah UUID warung dari respons, bukan slug |
+Belum termasuk: lupa password, verifikasi identitas mahasiswa, radius/geolokasi pada UI, sortir harga/jarak UI, penghapusan galeri melalui UI, dan deployment publik. Safari/perangkat fisik/performa multiuser membutuhkan penerimaan terpisah.
 
-Kontrak berhasil: `{ "success": true, "data": ... }`; gagal: `{ "success": false, "code": "...", "message": "..." }`, dengan `details` bila tersedia. Client mengembalikan `data` untuk request berhasil dan melempar `ApiError` untuk kegagalan. Daftar warung berisi `items` dan `pagination`; daftar favorit langsung berupa array. Field SQL seperti `isOpen` dinormalisasi dari `0/1`; nilai null tidak dibuat seolah-olah data lengkap.
+## Pengujian dan koordinasi
 
-## Sesi dan akses
+Jalankan `npm run check`, `npm audit`, dan `npm run test:browser:local`. Browser default memakai headless shell; Chrome dapat dipilih dengan `LAPERU_BROWSER_CHANNEL=chrome`. Hasil aktual dan keterbatasan ada di `SUBMISSION_STATUS.md`.
 
-- Access token hanya di memori aplikasi, tidak disimpan pada `localStorage`/`sessionStorage`. Request privat menyertakan `Authorization: Bearer <accessToken>`.
-- Refresh token memakai cookie HttpOnly dari Backend (`SameSite=Lax`, path `/api/v1/auth`; `Secure` pada production). Semua request client menggunakan `credentials: 'include'`.
-- Saat aplikasi dimuat ulang, AuthProvider mencoba refresh sesi. Request privat dapat refresh sekali ketika mendapatkan `401`; refresh yang sedang berjalan dipakai bersama agar tidak menggandakan rotasi.
-- Penanda generasi sesi menolak respons lama setelah akun berubah/logout. Login, registrasi, refresh, dan logout dikoordinasikan agar respons yang terlambat tidak memulihkan sesi yang sudah dibatalkan.
-- Logout membersihkan sesi lokal. Jika jaringan gagal, UI menyatakan sesi server belum terkonfirmasi berakhir dan menyediakan coba lagi; ini bukan klaim cookie server berhasil dicabut.
-- Parameter `next` hanya mengizinkan `/explore`, `/favorites`, `/account`, dan `/restaurants/<slug>`. URL eksternal, jalur ganda/terenkode yang tidak diizinkan, serta loop login/register ditolak.
-- Penyembunyian tombol berdasarkan role hanya untuk pengalaman pengguna; pemeriksaan token, role, dan kepemilikan tetap menjadi tanggung jawab Backend.
-
-## Batas cakupan untuk FE / QA
-
-- **UMKM:** baru registrasi dan informasi akun. Halaman melengkapi foto, mengirim/merevisi pengajuan, profil/menu/jam, balasan, dan statistik belum dibuat. Status PENDING pada akun baru **tidak berarti pengajuan sudah dikirim**.
-- **Admin:** dapat login dan melihat akun; dashboard persetujuan/moderasi belum dihubungkan ke UI.
-- **Customer:** favorit sudah dihubungkan; form membuat/mengubah ulasan, riwayat ulasan, dan laporan belum dibuat. Ulasan publik tetap dapat dibaca di detail.
-- Filter radius/lokasi, fasilitas, metode pembayaran, dan minimum rating tersedia pada kontrak Backend, tetapi belum menjadi kontrol di halaman Explore saat ini.
-- Lupa password, pengaturan “ingat saya”, notifikasi, dan foto profil pengguna tidak disimulasikan sebagai fitur siap pakai. Penetapan/verifikasi status mahasiswa juga belum dibuat.
-
-## Verifikasi dan handoff QA
-
-| Pemeriksaan | Status saat catatan ini dibuat |
-|---|---|
-| Frontend unit tests | **68 lulus**: client/sesi dan pemetaan data/endpoint restoran; request dimock pada unit tests |
-| Backend source tests | **33 lulus**; bukan bukti alur database menyeluruh |
-| API + database nyata pada worktree integrasi ini | **16/16 lulus** pada MariaDB 10.4.32; migration dan seed diulang dua kali |
-| Browser smoke Frontend → API → database | **Belum terverifikasi**: Chrome/Edge menutup sebelum skenario pertama; 13 skenario disiapkan tetapi belum lulus. Browser Playwright terpisah belum selesai dipasang |
-| Safari, uji beban, dan deployment production | Belum dinyatakan terverifikasi |
-
-Perintah dari root worktree:
-
-```powershell
-npm run test:frontend
-npm run test:backend
-npm run lint
-npm run build:all
-npm run test:database:local --workspace @laperu/backend
-npm run test:browser:local
-```
-
-Dua perintah terakhir memakai binary XAMPP/MariaDB di `C:\xampp\mysql\bin`, membuat database QA sementara terisolasi, lalu membersihkannya. Sebelum browser smoke, jalankan `npx playwright install chromium` satu kali untuk memasang browser pengujian terpisah. Runner membangun ulang Backend sebelum menguji dan memakai channel `chromium` secara default; `LAPERU_BROWSER_CHANNEL` dapat memilih channel terpasang lainnya. Ini tidak membuktikan MySQL 8 atau Safari. Untuk konfigurasi database/port dan cara menjalankan suite manual, lihat `docs/DATABASE_TESTING.md`; untuk kontrak lengkap, lihat `backend/openapi.yaml`.
-
-Prioritas penerimaan QA: Guest tidak bisa mengakses favorit privat; registrasi/login gagal tidak membuat sesi palsu; reload memulihkan sesi valid; pergantian akun tidak menampilkan favorit akun lama; simpan/hapus favorit bertahan setelah reload; role non-Customer tidak dapat menulis favorit; UMKM baru tidak langsung menjadi warung publik. Catat hasil aktual terpisah dari daftar skenario yang direncanakan.
+SA menyelaraskan SDD dengan schema 19 tabel dan kontrak OpenAPI. QA meninjau bukti browser/API, menambahkan penerimaan manual sesuai test case tim, dan mengisi hasil aktual. FE meninjau penggabungan visual pada PR. Tidak ada klaim dokumen Notion/Drive tim telah diedit atau disahkan.

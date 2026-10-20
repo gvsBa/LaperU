@@ -34,7 +34,13 @@ $previousLocation = Get-Location
 function Invoke-DatabaseAdmin([string]$Action) {
   $adminProcess = Start-Process -FilePath $databaseAdmin -ArgumentList @(
     '--no-defaults', '--host=127.0.0.1', "--port=$databasePort", '--user=root', '--connect-timeout=1', '--silent', $Action
-  ) -WindowStyle Hidden -Wait -PassThru
+  ) -WindowStyle Hidden -PassThru
+  if (-not $adminProcess.WaitForExit(3000)) {
+    # Bound this runner's health/shutdown client, never an existing DB service.
+    $adminProcess.Kill()
+    $adminProcess.WaitForExit()
+    return 1
+  }
   return $adminProcess.ExitCode
 }
 

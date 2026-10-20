@@ -1,18 +1,20 @@
 # LaperU — Handoff Backend untuk SDD
 
-Tanggal penyusunan: **15 September 2026**. Penanggung jawab Backend: **Achmad Bagus Pratama**.
+Tanggal penyusunan awal: **15 September 2026**. Pembaruan integrasi: **19 Oktober 2026**. Penanggung jawab Backend: **Achmad Bagus Pratama**.
+
+Untuk pengumpulan 22 Oktober, database berada di laptop melalui XAMPP/MariaDB 10.4.32. Frontend aktif adalah React JSX dari tim, bukan entry TypeScript lama. Dashboard UMKM/Admin, tulis/edit/hapus ulasan Customer, laporan, dan moderasi sudah dihubungkan pada branch pengumpulan. Daftar route/hasil uji terkini berada di `FRONTEND_BACKEND_HANDOFF.md` dan `SUBMISSION_STATUS.md`. Dokumen ini tetap bahan koordinasi, bukan klaim SDD final tim sudah disahkan.
 
 Dokumen ini adalah bahan koordinasi dengan Khalif (SA), UI/UX, Frontend, dan QA, bukan pengganti SDD final atau bukti bahwa seluruh fitur sudah lulus pengujian. Isi diturunkan dari kode dan migration di repository, bukan dari asumsi desain. Status **tersedia** berarti implementasi ditemukan; hasil eksekusi database, pengujian API, integrasi browser, dan persetujuan tim harus dicatat terpisah.
 
 ## 1. Arsitektur yang tersedia
 
 ```text
-Browser / Frontend React + TypeScript
+Browser / Frontend React JSX
   ├─ REST JSON /api/v1/* ──> Express + TypeScript
   │                          ├─ CORS, JSON parser, cookie parser, Helmet
   │                          ├─ autentikasi + otorisasi role + validasi Zod
   │                          ├─ modul auth / warungs / customer / umkm / admin / meta
-  │                          └─ mysql2 pool ──> MySQL / InnoDB
+  │                          └─ mysql2 pool ──> MariaDB lokal XAMPP / InnoDB
   └─ file /uploads/* <────── penyimpanan gambar lokal Backend
 ```
 

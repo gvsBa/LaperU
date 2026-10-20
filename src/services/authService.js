@@ -20,5 +20,5 @@ export function safeNextPath(value, fallback = '/explore') {
   if ([...value].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127)) return fallback
   const pathname = value.split(/[?#]/, 1)[0]
   if (pathname.includes('%') || pathname.includes('//') || /(?:^|\/)\.{1,2}(?:\/|$)/.test(pathname)) return fallback
-  return /^(?:\/explore|\/favorites|\/account|\/restaurants\/[a-zA-Z0-9_-]+)$/.test(pathname) ? value : fallback
+  return /^(?:\/explore|\/favorites|\/account|\/admin|\/umkm|\/reviews|\/restaurants\/[a-zA-Z0-9_-]+)$/.test(pathname) ? value : fallback
 }

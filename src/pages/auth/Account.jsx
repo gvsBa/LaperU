@@ -36,9 +36,9 @@ function Account() {
             <div><dt>Jenis akun</dt><dd>{roleLabels[user.role] ?? user.role}</dd></div>
             <div><dt>Status</dt><dd>{statusLabels[user.status] ?? user.status}</dd></div>
           </dl>
-          {user.role === 'UMKM' && <p className="auth-help">Dashboard pemilik warung belum tersedia pada frontend ini. Akun baru memiliki draft pengajuan; status menunggu persetujuan tidak berarti pengajuan sudah dikirim ke admin.</p>}
-          {user.role === 'ADMIN' && <p className="auth-help">Dashboard persetujuan dan pengelolaan admin belum tersedia pada frontend ini.</p>}
-          {user.role === 'CUSTOMER' && <p className="auth-switch"><Link to="/favorites">Lihat warung favoritmu</Link></p>}
+          {user.role === 'UMKM' && <p className="auth-switch"><Link to="/umkm">Buka dashboard UMKM</Link></p>}
+          {user.role === 'ADMIN' && <p className="auth-switch"><Link to="/admin">Buka dashboard Admin</Link></p>}
+          {user.role === 'CUSTOMER' && <p className="auth-switch"><Link to="/favorites">Lihat warung favoritmu</Link> · <Link to="/reviews">Ulasan saya</Link></p>}
           <button type="button" className="auth-submit" disabled={pending} onClick={handleLogout}>{pending ? 'Sedang keluar…' : 'Keluar dari akun'}</button>
         </section>
       ) : (
