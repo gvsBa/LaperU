@@ -175,6 +175,7 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Melihat status pengajuan
+      description: Response data menyertakan id profil untuk kompatibilitas, profileId, dan submissionId. Gunakan submissionId untuk endpoint keputusan Admin.
       responses: { '200': { $ref: '#/components/responses/Success' } }
     patch:
       tags: [UMKM]
@@ -195,6 +196,7 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Melihat profil warung sendiri
+      description: Response data menyertakan categoryId (UUID atau null) untuk nilai awal form edit kategori.
       responses: { '200': { $ref: '#/components/responses/Success' } }
     put:
       tags: [UMKM]
@@ -582,6 +584,7 @@ components:
       properties:
         hours:
           type: array
+          description: Tepat tujuh hari unik, 0=Senin sampai 6=Minggu. Hari operasional (isClosed=false) wajib memiliki openTime dan closeTime.
           minItems: 7
           maxItems: 7
           items:
@@ -589,8 +592,8 @@ components:
             required: [dayOfWeek, openTime, closeTime, isClosed]
             properties:
               dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
-              openTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
-              closeTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
+              openTime: { type: [string, 'null'], pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+              closeTime: { type: [string, 'null'], pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
               isClosed: { type: boolean }
     PhotoCreate:
       type: object

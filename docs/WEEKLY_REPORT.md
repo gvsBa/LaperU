@@ -1,29 +1,31 @@
-# Weekly Report
+# Weekly Report — 20 Oktober 2026
 
 Nama: Achmad Bagus Pratama  
 Divisi: Backend
 
 Progress Minggu ini:
 
-- Menentukan stack Backend: Node.js, Express, TypeScript, dan MySQL.
-- Menyiapkan struktur project Backend, konfigurasi environment, CORS, security headers, rate limit, logging, serta format response dan error yang konsisten.
-- Membuat rancangan database dan migration awal untuk akun, UMKM, pengajuan, warung, menu, jam operasional, fasilitas, metode pembayaran, ulasan, favorit, laporan, refresh token, dan audit log.
-- Membuat endpoint awal berdasarkan role Guest, Customer, UMKM, dan Admin, termasuk authentication serta verifikasi akun UMKM.
-- Menyiapkan kontrak API OpenAPI dan dokumentasi integrasi untuk Frontend.
-- Membuat prototype login dan sign-up minimalis hitam-putih serta menghubungkan form ke client API Backend.
-- Menyelaraskan endpoint dengan SRS dan RTM QA terbaru, termasuk enam kategori rating, riwayat ulasan, balasan UMKM, statistik, pengelolaan fasilitas/pembayaran, moderasi Admin, dan unggah gambar maksimal 2 MB.
-- Menyiapkan dummy data QA untuk email, kombinasi password, SQLi/XSS, dan sampel gambar valid/invalid/oversize.
+- Menggabungkan update frontend tim, termasuk halaman detail warung, dengan Backend pada branch integrasi pengumpulan.
+- Menghubungkan alur UMKM dari pengisian data dan upload foto, pengajuan, revisi, sampai persetujuan Admin. Setelah disetujui, UMKM dapat mengelola profil, menu, jadwal, fasilitas, metode pembayaran, serta membalas ulasan.
+- Melengkapi integrasi fitur Customer untuk ulasan dan pelaporan, serta dashboard Admin untuk pemeriksaan pengajuan dan moderasi.
+- Menyiapkan database lokal menggunakan XAMPP, panduan setup, serta data demo fiktif untuk presentasi.
+- Menjalankan pengujian lokal: 33 unit test Backend, 79 unit test frontend, 16 skenario API–database, dan 18 skenario browser berhasil. Pemeriksaan lint, kontrak API, dan build juga berhasil.
+- Memperbarui dokumentasi integrasi FE–BE, bahan SDD Backend, handoff QA, serta checklist pengumpulan tanggal 22 Oktober.
+- Mengunggah hasil integrasi ke GitHub dan membuka PR #1 untuk review tim, tanpa langsung mengganti branch utama.
 
-Target Minggu Depan:
+Target Minggu Depan / Menjelang Pengumpulan 22 Oktober:
 
-- Sinkronisasi kontrak API OpenAPI terbaru dengan Frontend, System Analyst, dan QA.
-- Menjalankan migration pada MySQL tim, membuat dummy data, dan menguji alur registrasi, login, pengajuan UMKM, serta approval Admin secara end-to-end.
-- Mulai integrasi endpoint authentication dan daftar warung bersama Frontend.
-- Menyesuaikan endpoint apabila terdapat perubahan flow atau kebutuhan dari SRS, UI/UX, dan Test Case QA.
+- Review hasil integrasi bersama FE dan QA, lalu sepakati commit final yang akan dikumpulkan.
+- Koordinasi dengan SA untuk mencocokkan SDD final dengan implementasi dan batas fitur yang tersedia.
+- Melakukan simulasi demo di laptop dengan XAMPP aktif serta menyiapkan berkas pengumpulan tanpa password atau data privat.
+- Menindaklanjuti temuan dari review tim yang masih masuk cakupan sebelum pengumpulan.
 
 Kendala:
 
-- MySQL Server belum tersedia pada environment lokal saat setup, sehingga build dan pengujian API tanpa database sudah dilakukan, sedangkan pengujian database end-to-end menunggu instance MySQL aktif.
-- Backend sudah menyediakan filter radius dari koordinat, tetapi UX sumber koordinat/izin lokasi masih perlu dikonfirmasi ke SA/UIUX. Test Plan juga memasukkan lupa password yang belum memiliki Requirement ID di SRS sehingga scope-nya perlu dikonfirmasi ke SA/QA.
+- Pengujian masih lokal pada MariaDB/XAMPP, Chromium dan Chrome. Safari, perangkat fisik, MySQL 8, serta uji beban belum diverifikasi.
+- Sempat terdapat kendala proses Node dan startup database QA di Windows; pengujian berhasil pada lingkungan yang dicatat di dokumen status.
+- Hasil integrasi dan dokumen final masih membutuhkan review/sign-off tim sebelum pengumpulan.
 
-Dokumentasi: https://github.com/gvsBa/LaperU
+---
+
+Laporan ini berdasarkan hasil kerja dan pengujian lokal, bukan klaim production deployment atau penerimaan tim selesai. Rincian bukti dan batas: [SUBMISSION_STATUS.md](SUBMISSION_STATUS.md). Riwayat periode sebelumnya tetap tersedia dalam [PROGRESS_2026-09-19.md](PROGRESS_2026-09-19.md).

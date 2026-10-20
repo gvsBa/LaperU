@@ -8,7 +8,7 @@ const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12)
 await pool.execute(
   `INSERT INTO users (id, full_name, email, password_hash, role, status)
    VALUES (?, ?, ?, ?, 'ADMIN', 'ACTIVE')
-   ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), password_hash = VALUES(password_hash), status = 'ACTIVE'`,
+   ON DUPLICATE KEY UPDATE id = id`,
   [randomUUID(), env.ADMIN_NAME, env.ADMIN_EMAIL.toLowerCase(), passwordHash],
 )
 

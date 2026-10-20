@@ -1,5 +1,21 @@
 # Handoff Backend ke QA
 
+## Update 20 Oktober 2026
+
+- Halaman UMKM/Admin, alur revisi-persetujuan, ulasan Customer dan moderasi sudah dihubungkan. Sumber status terkini: `SUBMISSION_STATUS.md`.
+- Browser smoke sekarang menjalankan 18 skenario end-to-end memakai database QA nyata terisolasi. Bukan pengganti sign-off test case tim.
+- Eksekusi 19 Oktober lulus pada Chromium headless 153.0.8010.12 dan Chrome terpasang 155.0.8059.82 (headless). Versi Node dan kendala environment dicatat di dokumen status.
+- Tambahan unit tests: upload multipart/ukuran/format, payload ulasan, dan endpoint privat.
+- Database pengumpulan lokal XAMPP/MariaDB. Safari, perangkat fisik, dan 50 sesi pengguna bersamaan belum diverifikasi.
+- Catatan September di bawah dipertahankan sebagai riwayat; tidak berarti dokumen eksternal tim telah diperiksa ulang hari ini.
+
+## Update eksekusi 15 September 2026
+
+- 33 tes sumber dan 16 skenario integrasi API–database lulus. Database nyata untuk run lokal adalah MariaDB 10.4.32/XAMPP, **bukan MySQL 8**.
+- Pengujian ulang: `npm run test:database:local --workspace @laperu/backend`; membuat lalu membersihkan database QA sementara miliknya sendiri.
+- Rincian cakupan, perbaikan, dan batas bukti: `docs/PROGRESS_2026-09-15.md`. Setup QA/MySQL tim: `docs/DATABASE_TESTING.md`.
+- Review workbook/Test Plan pada bagian di bawah adalah catatan sebelumnya, bukan klaim audit ulang dokumen eksternal pada 15 September.
+
 ## Penilaian format saat ini
 
 Workbook Test Case sudah memakai struktur inti yang benar: `Test ID`, `Test Case Scenario`, `Test Steps`, `Test Data`, dan `Expected Result`. Contoh `TC-LOG-01-A/B` juga sudah membedakan skenario positif dan negatif. Agar hasil eksekusi lebih mudah diaudit, tambahkan kolom berikut bila belum ada:

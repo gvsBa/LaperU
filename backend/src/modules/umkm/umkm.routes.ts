@@ -62,7 +62,7 @@ umkmRouter.use(authenticate, requireRole('UMKM'))
 
 umkmRouter.get('/application', asyncHandler(async (req, res) => {
   const [rows] = await pool.execute<GenericRow[]>(
-    `SELECT up.id, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
+    `SELECT up.id, up.id AS profileId, us.id AS submissionId, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
       up.business_type AS businessType, up.storefront_photo_url AS storefrontPhotoUrl,
       us.status, us.admin_note AS adminNote, us.submitted_at AS submittedAt, us.reviewed_at AS reviewedAt
      FROM umkm_profiles up JOIN umkm_submissions us ON us.umkm_profile_id = up.id
@@ -112,7 +112,7 @@ umkmRouter.get('/warung', asyncHandler(async (req, res) => {
   if (!profile.warungId) throw new ApiError(404, 'WARUNG_NOT_READY', 'Warung akan tersedia setelah pengajuan disetujui.')
   const [[rows], [hours], [facilities], [paymentMethods], [photos]] = await Promise.all([
     pool.execute<GenericRow[]>(
-      `SELECT id, name, slug, description, address, phone, latitude, longitude, price_min AS priceMin,
+      `SELECT id, name, slug, category_id AS categoryId, description, address, phone, latitude, longitude, price_min AS priceMin,
         price_max AS priceMax, status_override AS statusOverride, approval_status AS approvalStatus,
         is_active AS isActive, updated_at AS updatedAt FROM warungs WHERE id = ? LIMIT 1`,
       [profile.warungId],
