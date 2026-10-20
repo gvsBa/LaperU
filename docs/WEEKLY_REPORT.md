@@ -11,6 +11,7 @@ Progress Minggu ini:
 - Menyiapkan database lokal menggunakan XAMPP, panduan setup, serta data demo fiktif untuk presentasi.
 - Menjalankan pengujian lokal: 33 unit test Backend, 79 unit test frontend, 16 skenario API–database, dan 18 skenario browser berhasil. Pemeriksaan lint, kontrak API, dan build juga berhasil.
 - Memperbarui dokumentasi integrasi FE–BE, bahan SDD Backend, handoff QA, serta checklist pengumpulan tanggal 22 Oktober.
+- Mengunggah hasil integrasi ke GitHub dan membuka PR #1 untuk review tim, tanpa langsung mengganti branch utama.
 
 Target Minggu Depan / Menjelang Pengumpulan 22 Oktober:
 

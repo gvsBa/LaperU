@@ -4,6 +4,8 @@ Website informasi kuliner sekitar Telkom University: Guest, Customer, UMKM, dan 
 
 Frontend tim dari `feat/frontend-ui` sampai commit `05dc7a0` digabung dengan integrasi Backend. Desain logo, Explore, dan detail berasal dari pekerjaan FE; autentikasi, data API, serta layar pengelolaan ditambahkan pada branch `release/submission-2026-10-22`. Folder kerja lokal: `D:\ASE LAB\laperu-integration`. Folder lama `laperu-web` tidak diganti.
 
+Hasil integrasi tersedia untuk review melalui [Pull Request #1](https://github.com/gvsBa/LaperU/pull/1). Gunakan branch tersebut sampai tim menyetujui merge; branch `main` tidak otomatis diperbarui.
+
 ## Stack dan cakupan
 
 - Frontend: React JSX, React Router, Vite, Tailwind.

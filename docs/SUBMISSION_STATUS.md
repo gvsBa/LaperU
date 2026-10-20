@@ -6,6 +6,8 @@ Target pengumpulan: **22 Oktober 2026**. Penanggung jawab Backend: Achmad Bagus 
 
 - Repository: https://github.com/gvsBa/LaperU
 - Branch integrasi: `release/submission-2026-10-22`.
+- Pull request: https://github.com/gvsBa/LaperU/pull/1 — terbuka untuk review ke `main`, tidak di-merge otomatis.
+- Commit implementasi yang sudah di-push: `3ddf4f0`; pembaruan berikutnya pada branch dapat berupa dokumentasi.
 - Frontend tim: `feat/frontend-ui` sampai commit `05dc7a0161f40d3e601981069d48a72d91e3c021` (9 Oktober).
 - Snapshot integrasi Backend sebelumnya: `7ec9c00`. Pekerjaan lokal lama dipertahankan sebelum penggabungan.
 - Integrasi ini disiapkan untuk review; bukan pernyataan bahwa main sudah digabung atau tim telah melakukan sign-off.
