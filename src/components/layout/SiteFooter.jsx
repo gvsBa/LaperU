@@ -15,7 +15,7 @@ const footerGroups = [
     links: [
       { label: 'Daftar warung', to: '/register?role=umkm' },
       { label: 'Panduan verifikasi', to: '/register?role=umkm' },
-      { label: 'Dashboard UMKM', to: '/login' },
+      { label: 'Dashboard UMKM', to: '/umkm' },
     ],
   },
   {
