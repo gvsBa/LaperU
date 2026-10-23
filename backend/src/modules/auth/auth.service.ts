@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import jwt, { type SignOptions } from 'jsonwebtoken'
-import type { PoolConnection, RowDataPacket } from 'mysql2/promise'
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { env } from '../../config/env.js'
 import { pool } from '../../db/pool.js'
 import type { PublicUser, UserRole, UserStatus } from '../../types/domain.js'
@@ -124,21 +124,28 @@ export async function login(input: LoginInput, metadata: SessionMetadata) {
   return createSession(publicUser(user), metadata)
 }
 
-export async function refreshSession(token: string, metadata: SessionMetadata) {
+async function rotateSession(token: string, metadata: SessionMetadata) {
   const hash = hashRefreshToken(token)
-  const [rows] = await pool.execute<RefreshRow[]>(
-    `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status
-     FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id
-     WHERE rt.token_hash = ? AND rt.revoked_at IS NULL AND rt.expires_at > NOW() LIMIT 1`,
-    [hash],
-  )
-  const row = rows[0]
-  if (!row || row.status === 'SUSPENDED') throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
-
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
-    await connection.execute('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = ?', [row.refreshId])
+    // Claim exactly one valid token before reading the joined user. The
+    // conditional UPDATE serializes competing requests without locking users
+    // in a different order from the refresh-token foreign-key insert.
+    const [claim] = await connection.execute<ResultSetHeader>(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > NOW()',
+      [hash],
+    )
+    if (claim.affectedRows !== 1) throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
+    const [rows] = await connection.execute<RefreshRow[]>(
+      `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status
+       FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id
+       WHERE rt.token_hash = ? LIMIT 1`,
+      [hash],
+    )
+    const row = rows[0]
+    if (!row || row.status === 'SUSPENDED') throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
+
     const session = await createSession(publicUser(row), metadata, connection)
     await connection.commit()
     return session
@@ -147,6 +154,20 @@ export async function refreshSession(token: string, metadata: SessionMetadata) {
     throw error
   } finally {
     connection.release()
+  }
+}
+
+export async function refreshSession(token: string, metadata: SessionMetadata) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await rotateSession(token, metadata)
+    } catch (error) {
+      // InnoDB can pick either competing transaction as a deadlock victim.
+      // rotateSession has rolled back and released its connection, so retrying
+      // the complete claim is safe and re-checks whether the token was consumed.
+      const deadlock = typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_LOCK_DEADLOCK'
+      if (!deadlock || attempt >= 2) throw error
+    }
   }
 }
 

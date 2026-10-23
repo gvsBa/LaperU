@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 import Icon from '../../components/common/Icon'
-import menuItems from '../../mocks/menuItems'
+import { getFeaturedRestaurants } from '../../services/restaurantService'
+import { useRemote } from '../../services/useRemote'
+import RemoteStatus from '../../components/common/RemoteStatus'
+const loadFeatured = signal => getFeaturedRestaurants({ signal })
 
 const categories = [
   {
@@ -54,7 +57,8 @@ const testimonials = [
 ]
 
 function Home() {
-  const featuredMenus = menuItems.slice(0, 4)
+  const remote = useRemote(loadFeatured, [])
+  const featuredMenus = remote.data
 
   return (
     <>
@@ -79,17 +83,17 @@ function Home() {
         </div>
       </section>
 
-      <section className="home-featured" id="rekomendasi">
+      <section className="home-featured" id="rekomendasi"><RemoteStatus remote={remote} />
         <div className="home-featured__grid">
           {featuredMenus.map((item) => (
             <article className="home-menu-card" key={item.id}>
               <div className="home-menu-card__media">
-                <Link to={`/restaurants/${item.restaurantId}`} aria-label={`Lihat ${item.name}`}>
-                  <div className={`home-menu-card__image menu-sprite menu-sprite--${item.sprite} menu-sprite--${item.position}`} />
+                <Link to={`/restaurants/${item.slug}`} aria-label={`Lihat ${item.name}`}>
+                  {item.photoUrl ? <img className="home-menu-card__image" src={item.photoUrl} alt={item.name} /> : <div className="home-menu-card__image">Foto belum tersedia</div>}
                 </Link>
 
                 <Link
-                  to="/login?next=/favorites"
+                  to="/account?tab=activity&filter=favorite"
                   className="home-menu-card__favorite"
                   aria-label={`Simpan ${item.name} ke favorit`}
                 >
@@ -100,9 +104,9 @@ function Home() {
               <div className="home-menu-card__body">
                 <div>
                   <h2>{item.name}</h2>
-                  <p>{item.restaurant}</p>
+                  <p>{item.category}</p>
                 </div>
-                <strong>Rp{item.price.toLocaleString('id-ID')}</strong>
+                <strong>{item.priceRange}</strong>
               </div>
             </article>
           ))}
@@ -125,7 +129,7 @@ function Home() {
       </section>
 
       <section className="home-testimonials" id="tentang">
-        <h2>What Our Customers Say</h2>
+        <h2>Contoh pengalaman penggunaan</h2><p>Ilustrasi konten desain, bukan testimoni pengguna terverifikasi.</p>
 
         <div className="home-testimonials__grid">
           {testimonials.map((testimonial) => (

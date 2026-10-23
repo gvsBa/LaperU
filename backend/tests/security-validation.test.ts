@@ -43,6 +43,9 @@ describe('validasi data keamanan QA', () => {
   })
 
   it('mewajibkan pasangan koordinat untuk filter jarak', () => {
+    expect(warungListSchema.safeParse({ sort: 'nearest' }).success).toBe(false)
+    expect(warungListSchema.safeParse({ sort: 'cheapest' }).success).toBe(true)
+    expect(warungListSchema.safeParse({ sort: 'name; DROP TABLE users' }).success).toBe(false)
     expect(warungListSchema.safeParse({ latitude: -6.97, radiusKm: 3 }).success).toBe(false)
     expect(warungListSchema.safeParse({ latitude: -6.97, longitude: 107.63, radiusKm: 3 }).success).toBe(true)
   })

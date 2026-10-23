@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
 import Icon from '../common/Icon'
 
-const items = [
+const baseItems = [
   { to: '/', icon: 'home', label: 'Beranda' },
   { to: '/explore', icon: 'compass', label: 'Jelajahi' },
   { to: '/login?next=/favorites', icon: 'heart', label: 'Favorit' },
@@ -10,6 +11,10 @@ const items = [
 ]
 
 function QuickSidebar({ variant = 'fixed',  onNavigate }) {
+  const { user } = useAuth()
+  const items = baseItems.map(item => item.label === 'Akun' ? { ...item, to: user ? '/account' : '/login' } : item.label === 'Favorit' ? { ...item, to: '/account?tab=activity&filter=favorite' } : item)
+  if (user?.role === 'UMKM') items.push({ to: '/umkm', icon: 'store', label: 'Dashboard UMKM' })
+  if (user?.role === 'ADMIN') items.push({ to: '/admin', icon: 'user', label: 'Dashboard Admin' })
   const isDrawer = variant === 'drawer'
 
   return (

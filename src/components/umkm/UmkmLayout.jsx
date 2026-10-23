@@ -1,6 +1,14 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useAuth } from '../../auth/useAuth'
+import { privateApi } from '../../services/managementService'
+import { useRemote } from '../../services/useRemote'
+import RemoteStatus from '../common/RemoteStatus'
+import { Link, useLocation } from 'react-router-dom'
 import Logo from '../common/Logo'
 import SiteFooter from '../layout/SiteFooter'
+
+const loadApplication = signal => privateApi('/umkm/application', { signal })
 
 const navigation = [
   { label: 'Statistik', to: '/umkm', end: true },
@@ -15,6 +23,12 @@ const navigation = [
 
 function UmkmLayout() {
   const navigate = useNavigate()
+  const { logout, error } = useAuth()
+  const location = useLocation()
+  const application = useRemote(loadApplication)
+  const reloadApplication = application.reload
+  useEffect(() => { reloadApplication() }, [location.pathname, reloadApplication])
+  const mayManage = application.data?.status === 'APPROVED' || ['/umkm/pengajuan', '/umkm/akun'].includes(location.pathname)
 
   return (
     <div className="umkm-page">
@@ -42,14 +56,15 @@ function UmkmLayout() {
           <button
             type="button"
             className="umkm-sidebar__logout"
-            onClick={() => navigate('/explore')}
+            onClick={async () => { try { await logout(); navigate('/explore') } catch { /* AuthProvider displays session errors. */ } }}
           >
             Keluar
           </button>
         </aside>
 
         <main className="umkm-main">
-          <Outlet />
+          <RemoteStatus remote={application} />{error && <p role="alert">{error}</p>}
+          {mayManage ? <Outlet /> : application.data && <p>Status pengajuan: {application.data.status}. <Link to="/umkm/pengajuan">Lihat atau lengkapi pengajuan</Link></p>}
         </main>
       </div>
 

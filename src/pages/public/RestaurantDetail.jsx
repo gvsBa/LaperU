@@ -1,55 +1,23 @@
-import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import restaurants from '../../mocks/restaurants'
-import menuItems from '../../mocks/menuItems'
+import { useCallback, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
+import { getWarung, addFavorite } from '../../services/restaurantService'
+import { privateApi, saveData } from '../../services/managementService'
+import { useRemote } from '../../services/useRemote'
+import { publicReviewView, scoreKeys } from '../../services/viewModels'
+import RemoteStatus from '../../components/common/RemoteStatus'
 import profileAvatar from '../../assets/images/profile-avatar.webp'
 import SiteFooter from '../../components/layout/SiteFooter'
-
-const detailExtras = {
-  1: { address: 'Jl. Telekomunikasi No. 1, Sukapura', hours: '09.00–22.00', reviewCount: 120 },
-  2: { address: 'Jl. Telekomunikasi No. 8, Sukapura', hours: '10.00–22.00', reviewCount: 86 },
-  3: { address: 'Jl. Sukabirus No. 19, Dayeuhkolot', hours: '09.00–21.00', reviewCount: 74 },
-  4: { address: 'Jl. Telekomunikasi No. 15, Sukapura', hours: '10.00–21.00', reviewCount: 98 },
-  5: { address: 'Jl. Sukapura No. 5, Dayeuhkolot', hours: '08.00–22.00', reviewCount: 66 },
-  6: { address: 'Jl. Cikoneng No. 4, Sukapura', hours: '10.00–21.00', reviewCount: 52 },
-  7: { address: 'Jl. Sukabirus No. 10, Dayeuhkolot', hours: '10.00–23.00', reviewCount: 91 },
-  8: { address: 'Jl. Telekomunikasi No. 22, Sukapura', hours: '10.00–22.00', reviewCount: 78 },
-}
-
-const starterReviews = [
-  {
-    id: 1,
-    name: 'Nadia Putri',
-    date: '10 Mei 2024',
-    rating: 5,
-    text: 'Tempatnya nyaman buat makan bareng teman. Pelayanannya ramah, makanannya enak, dan harganya masih aman buat anak kampus.',
-  },
-  {
-    id: 2,
-    name: 'Rizky Maulana',
-    date: '28 April 2024',
-    rating: 5,
-    text: 'Menu favorit saya di sini. Porsinya pas, cepat disajikan, dan pilihan pembayarannya juga lengkap pakai QRIS.',
-  },
-  {
-    id: 3,
-    name: 'Aulia N.',
-    date: '14 April 2024',
-    rating: 4,
-    text: 'Lokasinya gampang dicari dan ada tempat makan di lokasi. Cocok kalau lagi cari makan siang dekat kampus.',
-  },
-]
 
 const reviewFields = [
   { key: 'taste', label: 'Rasa' },
   { key: 'price', label: 'Harga' },
   { key: 'portion', label: 'Porsi' },
-  { key: 'place', label: 'Tempat' },
+  { key: 'place', label: 'Kebersihan' },
   { key: 'comfort', label: 'Kenyamanan' },
-  { key: 'service', label: 'Service' },
+  { key: 'service', label: 'Kecepatan' },
 ]
 
-const galleryPositions = ['one', 'two', 'three', 'four']
 
 function emptyScores() {
   return {
@@ -68,11 +36,19 @@ function formatFacility(item) {
 }
 
 function RestaurantDetail() {
-  const { id } = useParams()
-  const [searchParams] = useSearchParams()
-  const restaurantId = Number(id)
-  const restaurant = restaurants.find((item) => item.id === restaurantId)
-
+  const { slug } = useParams()
+  const { user } = useAuth()
+  return <Detail key={slug + (user?.id || 'guest')} slug={slug} user={user} />
+}
+function Detail({ slug, user }) {
+  const loader = useCallback(async signal => {
+    const restaurant = await getWarung(slug, { signal })
+    const own = user?.role === 'CUSTOMER' ? await privateApi(`/customer/reviews?warungId=${restaurant.id}`, { signal }) : null
+    return { restaurant, myReview: own?.items[0] ? publicReviewView(own.items[0], true) : null }
+  }, [slug, user?.role])
+  const remote = useRemote(loader)
+  const restaurant = remote.data?.restaurant
+  const myReview = remote.data?.myReview
   const [menuOpen, setMenuOpen] = useState(false)
   const [routeDialogOpen, setRouteDialogOpen] = useState(false)
   const [guestDialogOpen, setGuestDialogOpen] = useState(false)
@@ -83,14 +59,14 @@ function RestaurantDetail() {
   const [reviewScores, setReviewScores] = useState(emptyScores)
   const [reviewText, setReviewText] = useState('')
   const [reviewError, setReviewError] = useState('')
-  const [myReview, setMyReview] = useState(null)
   const [reportText, setReportText] = useState('')
   const [reportError, setReportError] = useState('')
   const [reportSent, setReportSent] = useState(false)
   const [reportTarget, setReportTarget] = useState(null)
 
-  const isAuthenticated = searchParams.get('mode') === 'account'
+  const isAuthenticated = user?.role === 'CUSTOMER'
 
+  if (remote.loading || remote.error) return <main className="detail-not-found"><RemoteStatus remote={remote} /><Link to="/explore">Kembali ke Explore</Link></main>
   if (!restaurant) {
     return (
       <main className="detail-not-found">
@@ -101,31 +77,23 @@ function RestaurantDetail() {
     )
   }
 
-  const extra = detailExtras[restaurant.id]
-  const restaurantMenu = menuItems.filter(
-    (item) => item.restaurantId === restaurant.id,
-  )
-
-  const highlights = [
-    ...restaurant.facilities,
-    ...restaurant.paymentMethods.filter(
-      (item) => !restaurant.facilities.includes(item),
-    ),
-  ]
-
-  const detailUrl = `/restaurants/${restaurant.id}?mode=account`
-  const reviewCount = extra.reviewCount + (myReview ? 1 : 0)
-  const displayedReviews = myReview ? [myReview, ...starterReviews] : starterReviews
+  const extra = { address: restaurant.address, hours: 'sesuai status pemilik' }
+  const restaurantMenu = restaurant.menus
+  const highlights = [...restaurant.facilities, ...restaurant.payments].map(item => item.name)
+  const detailUrl = `/restaurants/${restaurant.slug}`
+  const reviewCount = restaurant.reviewCount
+  const displayedReviews = restaurant.reviews.filter(item => item.id !== myReview?.id).map(item => publicReviewView(item))
+  if (myReview) displayedReviews.unshift(myReview)
 
   function openGoogleMaps() {
-    const destination = `${restaurant.name}, ${extra.address}, Bandung`
+    const destination = restaurant.latitude != null && restaurant.longitude != null ? `${restaurant.latitude},${restaurant.longitude}` : `${restaurant.name}, ${extra.address}, Bandung`
 
     function openMap(origin) {
       const url = origin
         ? `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${encodeURIComponent(destination)}`
         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
 
-      window.open(url, '_blank')
+      window.open(url, '_blank', 'noopener,noreferrer')
       setRouteDialogOpen(false)
     }
 
@@ -161,44 +129,15 @@ function RestaurantDetail() {
     setReviewDialogOpen(true)
   }
 
-  function submitReview(event) {
+  async function submitReview(event) {
     event.preventDefault()
-
-    const scores = Object.values(reviewScores)
-    const isComplete = scores.every((score) => score > 0)
-
-    if (!isComplete || !reviewText.trim()) {
-      setReviewError('Isi semua rating dan ulasan terlebih dahulu.')
-      return
-    }
-
-    const averageRating = Math.round(
-      scores.reduce((total, score) => total + score, 0) / scores.length,
-    )
-
-    const nextReview = {
-      id: 'my-review',
-      name: 'Kamu',
-      date: new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date()),
-      rating: averageRating,
-      text: reviewText.trim(),
-      scores: reviewScores,
-      isMine: true,
-    }
-
-    setMyReview(nextReview)
-    setReviewDialogOpen(false)
-    setReviewText('')
-    setReviewScores(emptyScores())
+    if (Object.values(reviewScores).some(score => score < 1) || !reviewText.trim()) { setReviewError('Isi semua rating dan ulasan terlebih dahulu.'); return }
+    const body = { ...Object.fromEntries(Object.entries(scoreKeys).map(([key, field]) => [field, reviewScores[key]])), comment: reviewText.trim() }
+    if (reviewMode !== 'edit') body.warungId = restaurant.id
+    if (await remote.run(() => saveData(reviewMode === 'edit' ? `/customer/reviews/${myReview.id}` : '/customer/reviews', reviewMode === 'edit' ? 'PATCH' : 'POST', body))) { setReviewDialogOpen(false); setReviewError('') }
   }
-
-  function deleteMyReview() {
-    setMyReview(null)
-    setDeleteDialogOpen(false)
+  async function deleteMyReview() {
+    if (await remote.run(() => saveData(`/customer/reviews/${myReview.id}`, 'DELETE'))) setDeleteDialogOpen(false)
   }
 
   function openReportDialog(review) {
@@ -214,16 +153,11 @@ function RestaurantDetail() {
     setReportDialogOpen(true)
   }
 
-  function submitReport(event) {
+  async function submitReport(event) {
     event.preventDefault()
-
-    if (!reportText.trim()) {
-      setReportError('Laporan tidak boleh kosong.')
-      return
-    }
-
+    if (reportText.trim().length < 3) { setReportError('Alasan minimal 3 karakter.'); return }
     setReportError('')
-    setReportSent(true)
+    if (await remote.run(() => saveData('/customer/reports', 'POST', { targetType: reportTarget ? 'REVIEW' : 'WARUNG', targetId: reportTarget?.id || restaurant.id, reason: reportText.trim().slice(0, 160), detail: reportText.trim() }))) setReportSent(true)
   }
 
   return (
@@ -240,7 +174,7 @@ function RestaurantDetail() {
         </div>
       </header>
 
-      <main className="detail-main">
+      <main className="detail-main"><RemoteStatus remote={remote} />
         <section className="detail-hero" aria-label={`Galeri ${restaurant.name}`}>
           <div className="detail-hero__title">
             <span>Warung pilihan sekitar Telkom University</span>
@@ -248,12 +182,7 @@ function RestaurantDetail() {
           </div>
 
           <div className="detail-hero__photos">
-            {galleryPositions.map((position) => (
-              <div
-                key={position}
-                className={`detail-hero__photo food-sprite food-sprite--${position}`}
-              />
-            ))}
+            {restaurant.photos.length ? restaurant.photos.slice(0, 4).map(photo => <img key={photo.id} className="detail-hero__photo" src={photo.url} alt={photo.altText || restaurant.name} />) : <p>Foto warung belum tersedia.</p>}
           </div>
         </section>
 
@@ -267,7 +196,7 @@ function RestaurantDetail() {
             </p>
 
             <div className="detail-rating">
-              <span aria-label={`Rating ${restaurant.rating} dari 5`}>★★★★★</span>
+              <span aria-label={`Rating ${restaurant.rating} dari 5`}>{"★".repeat(Math.round(restaurant.rating))}</span>
               <strong>{restaurant.rating}</strong>
               <small>({reviewCount} ulasan)</small>
             </div>
@@ -292,7 +221,7 @@ function RestaurantDetail() {
           </div>
 
           <div className="detail-review-list">
-            {displayedReviews.map((review, reviewIndex) => (
+            {displayedReviews.map((review) => (
               <article className="detail-review-card" key={review.id}>
                 <div className="detail-review-card__profile">
                   <img src={profileAvatar} alt="" />
@@ -303,13 +232,13 @@ function RestaurantDetail() {
                     <div>
                       <h3>{review.name}</h3>
                       <div className="detail-review-card__rating">
-                        <span>{'★'.repeat(review.rating)}</span>
+                        <span>{'★'.repeat(Math.round(review.rating))}</span>
                         <time>{review.date}</time>
                       </div>
                     </div>
                   </div>
 
-                  <p>{review.text}</p>
+                  <p>{review.text}</p>{review.isMine && review.status === "HIDDEN" && <small>Ulasan ini disembunyikan Admin dari publik.</small>}{review.umkmReply && <blockquote>Balasan pemilik: {review.umkmReply}</blockquote>}
 
                   <div className="detail-review-card__actions">
                     {review.isMine ? (
@@ -333,24 +262,13 @@ function RestaurantDetail() {
                   </div>
                 </div>
 
-                <div className="detail-review-card__gallery">
-                  {galleryPositions.map((position, imageIndex) => (
-                    <div
-                      key={position}
-                      className={`detail-review-card__image food-sprite food-sprite--${
-                        galleryPositions[
-                          (imageIndex + reviewIndex) % galleryPositions.length
-                        ]
-                      }`}
-                    />
-                  ))}
-                </div>
               </article>
             ))}
           </div>
         </section>
 
         <div className="detail-actions">
+          {isAuthenticated && <><button disabled={remote.busy} onClick={() => remote.run(() => addFavorite(restaurant.id), 'Warung tersimpan di favorit.')}>Simpan favorit</button><button onClick={() => openReportDialog(null)}>Laporkan warung</button></>}
           <button type="button" onClick={() => setRouteDialogOpen(true)}>
             Rute Peta
           </button>
@@ -385,13 +303,11 @@ function RestaurantDetail() {
             <div className="detail-menu__grid">
               {restaurantMenu.map((item) => (
                 <article className="detail-menu__item" key={item.id}>
-                  <div
-                    className={`detail-menu__image menu-sprite menu-sprite--${item.sprite} menu-sprite--${item.position}`}
-                  />
+                  {item.photoUrl && <img className="detail-menu__image" src={item.photoUrl} alt={item.name} />}
                   <div>
                     <h3>{item.name}</h3>
-                    <p>{item.category}</p>
-                    <strong>Rp{item.price.toLocaleString('id-ID')}</strong>
+                    <p>{item.description} · {Number(item.isAvailable) ? "Tersedia" : "Habis"}</p>
+                    <strong>Rp{Number(item.price).toLocaleString('id-ID')}</strong>
                   </div>
                 </article>
               ))}
@@ -500,7 +416,7 @@ function RestaurantDetail() {
               {reviewMode === 'edit' ? 'Edit Ulasan' : 'Beri Ulasan'}
             </h2>
 
-            <form onSubmit={submitReview}>
+            <form onSubmit={submitReview}><RemoteStatus remote={remote} />
               <div className="review-score-grid">
                 {reviewFields.map((field) => (
                   <label className="review-score" key={field.key}>
@@ -530,7 +446,7 @@ function RestaurantDetail() {
               <label className="review-textarea">
                 Ulasan
                 <textarea
-                  value={reviewText}
+                  maxLength={1500} aria-label="Ulasan" value={reviewText}
                   onChange={(event) => setReviewText(event.target.value)}
                   placeholder="Bagikan pengalaman kamu di warung ini..."
                 />
@@ -546,7 +462,7 @@ function RestaurantDetail() {
                 >
                   Batal
                 </button>
-                <button type="submit" className="detail-dialog__button">
+                <button type="submit" disabled={remote.busy} className="detail-dialog__button">
                   Kirim
                 </button>
               </div>
@@ -584,7 +500,7 @@ function RestaurantDetail() {
               <button
                 type="button"
                 className="detail-dialog__button"
-                onClick={deleteMyReview}
+                disabled={remote.busy} onClick={deleteMyReview}
               >
                 Hapus
               </button>
@@ -608,17 +524,17 @@ function RestaurantDetail() {
             aria-modal="true"
             aria-labelledby="report-title"
           >
-            <h2 id="report-title">Laporkan Ulasan</h2>
+            <h2 id="report-title">Laporkan {reportTarget ? "Ulasan" : "Warung"}</h2>
             <p>
-              Laporkan ulasan dari <strong>{reportTarget?.name}</strong> jika
+              Laporkan <strong>{reportTarget?.name || restaurant.name}</strong> jika
               isinya tidak sesuai.
             </p>
 
-            <form onSubmit={submitReport}>
+            <form onSubmit={submitReport}><RemoteStatus remote={remote} />
               <label className="review-textarea">
                 Masukkan laporan anda
                 <textarea
-                  value={reportText}
+                  maxLength={1200} aria-label="Alasan laporan" value={reportText}
                   onChange={(event) => setReportText(event.target.value)}
                   placeholder="Tulis alasan laporan..."
                   disabled={reportSent}
@@ -642,7 +558,7 @@ function RestaurantDetail() {
                 </button>
 
                 {!reportSent && (
-                  <button type="submit" className="detail-dialog__button">
+                  <button type="submit" disabled={remote.busy} className="detail-dialog__button">
                     Kirim laporan
                   </button>
                 )}

@@ -1,20 +1,24 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useAuth } from '../../auth/useAuth'
+import { addFavorite } from '../../services/restaurantService'
 import Icon from '../common/Icon'
 
 function RestaurantCard({ restaurant }) {
   const navigate = useNavigate()
-  const location = useLocation()
-  const isAuthenticated =
-    new URLSearchParams(location.search).get('mode') === 'account'
-
-  const detailUrl = `/restaurants/${restaurant.id}${
-    isAuthenticated ? '?mode=account' : ''
-  }`
-
-  function handleFavorite() {
-    navigate(`/login?next=${encodeURIComponent(detailUrl)}`)
+  const { user } = useAuth()
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const detailUrl = `/restaurants/${restaurant.slug}`
+  async function handleFavorite() {
+    if (!user) { navigate(`/login?next=${encodeURIComponent(detailUrl)}`); return }
+    if (user.role !== 'CUSTOMER') { setMessage('Favorit hanya untuk Customer.'); return }
+    if (busy) return
+    setBusy(true)
+    try { await addFavorite(restaurant.id); setMessage('Tersimpan di favorit.') }
+    catch (error) { setMessage(error.message) }
+    finally { setBusy(false) }
   }
-
   return (
     <article className="restaurant-card">
       <div className="restaurant-card__media">
@@ -23,9 +27,7 @@ function RestaurantCard({ restaurant }) {
           className="restaurant-card__image-wrap"
           aria-label={`Lihat ${restaurant.name}`}
         >
-          <div
-            className={`restaurant-card__image food-sprite food-sprite--${restaurant.imagePosition}`}
-          />
+          {restaurant.photoUrl ? <img className="restaurant-card__image" src={restaurant.photoUrl} alt={restaurant.name} loading="lazy" /> : <div className="restaurant-card__image"><span>Foto belum tersedia</span></div>}
         </Link>
 
         <span
@@ -37,7 +39,7 @@ function RestaurantCard({ restaurant }) {
         </span>
 
         <button
-          className="favorite-button"
+          className="favorite-button" disabled={busy}
           onClick={handleFavorite}
           aria-label={`Simpan ${restaurant.name} ke favorit`}
         >
@@ -45,7 +47,7 @@ function RestaurantCard({ restaurant }) {
         </button>
       </div>
 
-      <div className="restaurant-card__body">
+      <div className="restaurant-card__body">{message && <p role="status">{message}</p>}
         <div className="restaurant-card__heading">
           <Link to={detailUrl}>{restaurant.name}</Link>
           <span>

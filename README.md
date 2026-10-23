@@ -1,67 +1,70 @@
-# LaperU
+# LaperU — integrasi FE terbaru + Backend
 
-Fondasi LaperU terdiri dari Frontend React dan Backend REST API untuk Guest, Customer, UMKM, dan Admin.
+Branch: **integration/frontend-api-2026-10-22**. Baseline desain: **feat/frontend-ui @ 88161f4** (Customer, UMKM, Admin). Handoff diperbarui 23 Oktober 2026.
 
-## Stack
+Jangan menyalin folder backend saja atau merge release lama secara utuh. Integrasi memerlukan service API, autentikasi, route guard, proxy, dependency workspace, serta penghubung aksi pada halaman FE. Desain terbaru tetap menjadi baseline; data contoh dan aksi simulasi diganti API.
 
-- Frontend: React, TypeScript, Vite.
-- Backend: Node.js, Express, TypeScript.
-- Database: MySQL 8.
-- Authentication: access token JWT dan rotating refresh token melalui cookie HTTP-only.
+## Mulai di laptop Windows (VS Code + XAMPP)
 
-## Menjalankan project
+Butuh Git, Node.js 24.x, XAMPP (MySQL/MariaDB), dan Chrome. Node 24.19.0 digunakan untuk verifikasi akhir. Apache/PHP bukan server aplikasi ini; Apache hanya perlu jika memakai phpMyAdmin.
 
-1. Pasang dependensi dari root:
+Clone ke **folder baru** untuk QA, jangan menimpa checkout atau .env yang sudah ada:
 
-```powershell
-npm install
-```
+~~~powershell
+git clone --branch integration/frontend-api-2026-10-22 https://github.com/gvsBa/LaperU.git LaperU-QA
+cd LaperU-QA
+code .
+npm.cmd ci
+npm.cmd run setup:local
+~~~
 
-2. Siapkan environment:
+Buka XAMPP Control Panel, Start **MySQL**. Periksa DATABASE_URL di backend/.env. Setup default memakai root tanpa password pada 127.0.0.1:3306 untuk XAMPP lokal saja. Jika root memiliki password/port berbeda, sesuaikan sendiri. Jangan kirim .env/password ke grup. setup:local **tidak menimpa** .env yang ada.
 
-```powershell
-Copy-Item .env.example .env
-Copy-Item backend/.env.example backend/.env
-```
+~~~powershell
+npm.cmd run db:migrate --workspace @laperu/backend
+npm.cmd run db:seed --workspace @laperu/backend
+npm.cmd run db:seed:demo --workspace @laperu/backend
+npm.cmd run dev:all
+~~~
 
-3. Pastikan MySQL aktif, kemudian buat tabel dan data awal:
+Buka **http://127.0.0.1:5173**. Gunakan host tersebut secara konsisten, jangan bergantian dengan localhost. Terminal tetap menyala. Pemeriksaan koneksi: http://127.0.0.1:3000/api/v1/health/database.
 
-```powershell
-npm run db:migrate --workspace @laperu/backend
-npm run db:seed --workspace @laperu/backend
-```
+- Admin: email/password lokal dari backend/.env saat seed pertama. Seed ulang tidak mengganti password Admin yang sudah ada.
+- Customer dan UMKM demo: backend/.demo-accounts.local.json, dibuat otomatis dengan password acak; file tidak masuk Git.
+- UMKM demo sudah disetujui. Untuk menguji pengajuan, daftar akun UMKM baru.
+- Database dan akun berada di **laptop masing-masing**, bukan tersinkron melalui GitHub.
+- Gunakan server Node/Vite di atas, bukan VS Code Live Server.
+- Hentikan aplikasi dengan Ctrl+C pada terminal miliknya, bukan menghentikan seluruh proses Node/MySQL.
 
-4. Jalankan Frontend dan Backend bersama-sama:
+## Pemeriksaan
 
-```powershell
-npm run dev:all
-```
+~~~powershell
+npm.cmd run check
+npm.cmd run test:database:local --workspace @laperu/backend
+npx.cmd playwright install chromium
+npm.cmd run test:browser:local
+~~~
 
-- Frontend: `http://localhost:5173/login`
-- Backend: `http://localhost:3000/api/v1`
-- Health check: `http://localhost:3000/api/v1/health`
+Tes database membuat instance MariaDB sementara dan membersihkannya setelah selesai; tidak memakai database kerja laperu. Default binary C:\xampp\mysql\bin. Jika berbeda, jalankan dari root:
 
-## Dokumentasi
+~~~powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/test-local-database.ps1 -DatabaseBin "D:\xampp\mysql\bin" -BrowserSmoke
+~~~
 
-- Kontrak API: `backend/openapi.yaml`
-- Petunjuk Backend: `backend/README.md`
-- Tema dan target performa: `docs/THEME_AND_PERFORMANCE.md`
-- Weekly report Bagus: `docs/WEEKLY_REPORT.md`
-- Traceability SRS ke Backend: `docs/SRS_BACKEND_TRACEABILITY.md`
-- Handoff dan data uji QA: `docs/QA_HANDOFF.md`, `backend/test-data/`
+check mencakup typecheck, ESLint, OpenAPI, unit test dan build. Browser test menggunakan data fiktif dan menghasilkan bukti di test-results/ (diabaikan Git). Build lulus bukan bukti Safari atau production sudah teruji.
 
-## Pemeriksaan kualitas
+## Dokumentasi utama
 
-```powershell
-npm run typecheck:all
-npm run lint
-npm run lint:api
-npm run test:backend
-npm run build:all
-```
+- [Panduan Fikri dari nol + troubleshooting](docs/QA_START_HERE.md)
+- [Checklist pengujian manual](docs/QA_TEST_CHECKLIST.md)
+- [Handoff FE, cakupan integrasi dan batasan](docs/FRONTEND_INTEGRATION_HANDOFF.md)
+- [Kontrak API](backend/openapi.yaml)
+- [Backend](backend/README.md)
 
-Untuk membuat sampel gambar valid, tidak valid, dan oversize bagi QA:
+Dokumen lama WEEKLY_REPORT, QA_HANDOFF, SRS_BACKEND_TRACEABILITY dan THEME_AND_PERFORMANCE tetap disimpan sebagai catatan historis; status integrasi terbaru menggunakan tiga dokumen di atas.
 
-```powershell
-npm run qa:generate-images --workspace @laperu/backend
-```
+## Stack dan batas penggunaan
+
+React JSX + Vite; Express + TypeScript; mysql2; access token di memori dan rotating refresh token di cookie HTTP-only. Verifikasi database menggunakan MariaDB bawaan XAMPP; bukan pembuktian semua versi MySQL.
+
+Versi ini untuk demo/UAT lokal. Reset password/email, 2FA, manajemen perangkat, edit profil akun, dan hapus foto galeri belum diimplementasikan. Kontrol terkait dinonaktifkan/ditandai, bukan menyimulasikan sukses. Lihat daftar lengkap pada handoff. Jangan deploy dengan kredensial contoh atau konfigurasi lokal.

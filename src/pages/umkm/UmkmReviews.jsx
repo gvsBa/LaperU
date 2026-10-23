@@ -1,23 +1,7 @@
-const reviews = [
-  {
-    id: 1,
-    user: 'Iyse',
-    rating: 5,
-    text: 'Tempatnya nyaman dan bersih',
-  },
-  {
-    id: 2,
-    user: 'Manoj',
-    rating: 5,
-    text: 'Menu nya banyak',
-  },
-  {
-    id: 3,
-    user: 'Kakut',
-    rating: 4,
-    text: 'Tempatnya bisa di perluas',
-  },
-]
+import { useRemote } from '../../services/useRemote'
+import { privateApi, saveData } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+const loadReviews = async signal => (await privateApi('/umkm/reviews', { signal })).map(item => ({ ...item, user: item.customerName, rating: Number(item.averageRating), text: item.comment || '' }))
 
 function StarRating({ rating }) {
   return (
@@ -32,9 +16,11 @@ function StarRating({ rating }) {
 }
 
 function UmkmReviews() {
+  const remote = useRemote(loadReviews, [])
+  const reviews = remote.data
   return (
     <section className="umkm-reviews">
-      <h1>Kelola Ulasan</h1>
+      <h1>Kelola Ulasan</h1><RemoteStatus remote={remote} />
 
       <div className="umkm-reviews__card">
         <div className="umkm-reviews__table-wrap">
@@ -54,7 +40,7 @@ function UmkmReviews() {
                   <td>
                     <StarRating rating={review.rating} />
                   </td>
-                  <td>{review.text}</td>
+                  <td>{review.text}<form onSubmit={event => { event.preventDefault(); const reply = new FormData(event.currentTarget).get('reply'); remote.run(() => saveData(`/umkm/reviews/${review.id}/reply`, 'PUT', { reply })) }}><label>Balasan untuk {review.user}<textarea name="reply" required maxLength={1500} defaultValue={review.reply || ''} /></label><button disabled={remote.busy}>Simpan balasan</button></form></td>
                 </tr>
               ))}
             </tbody>

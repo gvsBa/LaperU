@@ -1,23 +1,17 @@
 import { useState } from 'react'
 
-const initialCategories = [
-  { id: 1, name: 'Masakan Sunda', description: 'Menu khas Sunda dan makanan rumahan.' },
-  { id: 2, name: 'Mie & Bakmi', description: 'Aneka mie, bakmi, dan olahan sejenis.' },
-  { id: 3, name: 'Bakso & Soto', description: 'Warung bakso, soto, dan makanan berkuah.' },
-  { id: 4, name: 'Ayam & Bebek', description: 'Menu ayam goreng, ayam bakar, dan bebek.' },
-]
 
-const initialFacilities = [
-  { id: 1, name: 'Dine In', description: 'Tersedia tempat makan di lokasi.' },
-  { id: 2, name: 'Take Away', description: 'Pesanan dapat dibawa pulang.' },
-  { id: 3, name: 'Parkir', description: 'Tersedia area parkir kendaraan.' },
-  { id: 4, name: 'Pembayaran QRIS', description: 'Menerima pembayaran menggunakan QRIS.' },
-]
+import { useRemote } from '../../services/useRemote'
+import { saveData } from '../../services/managementService'
+import { getFilterOptions } from '../../services/restaurantService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+const loadMeta = signal => getFilterOptions({ signal })
 
 function AdminMasterData() {
   const [activeTab, setActiveTab] = useState('categories')
-  const [categories, setCategories] = useState(initialCategories)
-  const [facilities, setFacilities] = useState(initialFacilities)
+  const remote = useRemote(loadMeta)
+  const categories = remote.data?.categories || []
+  const facilities = remote.data?.facilities || []
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -32,56 +26,20 @@ function AdminMasterData() {
     setEditingId(null)
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-
-    if (!name.trim()) {
-      alert('Nama data wajib diisi.')
-      return
-    }
-
-    const updateItems = isCategory ? setCategories : setFacilities
-
-    if (editingId) {
-      updateItems((current) =>
-        current.map((item) =>
-          item.id === editingId
-            ? { ...item, name: name.trim(), description: description.trim() }
-            : item,
-        ),
-      )
-    } else {
-      updateItems((current) => [
-        ...current,
-        {
-          id: Date.now(),
-          name: name.trim(),
-          description: description.trim() || 'Belum ada deskripsi.',
-        },
-      ])
-    }
-
-    resetForm()
+    if (await remote.run(() => saveData(`/admin/${activeTab}${editingId ? '/' + editingId : ''}`, editingId ? 'PATCH' : 'POST', { name: name.trim() }))) resetForm()
   }
 
   function startEdit(item) {
     setName(item.name)
-    setDescription(item.description)
+    setDescription('')
     setEditingId(item.id)
   }
 
-  function deleteItem(id) {
-    const confirmed = window.confirm('Hapus data ini?')
-
-    if (!confirmed) return
-
-    if (isCategory) {
-      setCategories((current) => current.filter((item) => item.id !== id))
-    } else {
-      setFacilities((current) => current.filter((item) => item.id !== id))
-    }
-
-    if (editingId === id) resetForm()
+  async function deleteItem(id) {
+    if (!window.confirm('Hapus data referensi ini? Hubungan dengan warung dapat ikut dilepas.')) return
+    if (await remote.run(() => saveData(`/admin/${activeTab}/${id}`, 'DELETE'))) resetForm()
   }
 
   function changeTab(tab) {
@@ -93,7 +51,7 @@ function AdminMasterData() {
     <section className="admin-master-data">
       <div className="admin-page-heading">
         <div>
-          <h1>Master Data</h1>
+          <h1>Master Data</h1><RemoteStatus remote={remote} />
           <p>Kelola kategori dan fasilitas yang dapat digunakan oleh warung.</p>
         </div>
       </div>
@@ -130,7 +88,7 @@ function AdminMasterData() {
               Nama {isCategory ? 'kategori' : 'fasilitas'}
               <input
                 type="text"
-                value={name}
+                required minLength={2} maxLength={100} value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={
                   isCategory ? 'Contoh: Minuman' : 'Contoh: WiFi'
@@ -141,9 +99,9 @@ function AdminMasterData() {
             <label>
               Deskripsi
               <textarea
-                value={description}
+                disabled value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Tulis penjelasan singkat..."
+                placeholder="Deskripsi tidak disimpan pada kontrak data master saat ini."
               />
             </label>
 
@@ -179,7 +137,7 @@ function AdminMasterData() {
               <thead>
                 <tr>
                   <th>Nama</th>
-                  <th>Deskripsi</th>
+                  <th>Slug sistem</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
@@ -193,7 +151,7 @@ function AdminMasterData() {
                       </span>
                       <strong>{item.name}</strong>
                     </td>
-                    <td>{item.description}</td>
+                    <td>{item.slug}</td>
                     <td>
                       <div className="admin-master-data__actions">
                         <button type="button" onClick={() => startEdit(item)}>

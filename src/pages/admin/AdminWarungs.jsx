@@ -1,67 +1,18 @@
 import { useMemo, useState } from 'react'
 
-const initialWarungs = [
-  {
-    id: 1,
-    initials: 'WN',
-    name: 'Warung Nasi Bu Euis',
-    owner: 'Euis Siti Aisyah',
-    category: 'Masakan Sunda',
-    location: 'Jl. Sukabirus',
-    rating: 4.8,
-    reviews: 124,
-    status: 'Aktif',
-  },
-  {
-    id: 2,
-    initials: 'MP',
-    name: 'Mie Pedas Teh Rani',
-    owner: 'Rani Ramadhani',
-    category: 'Mie & Bakmi',
-    location: 'Jl. Telekomunikasi',
-    rating: 4.7,
-    reviews: 98,
-    status: 'Aktif',
-  },
-  {
-    id: 3,
-    initials: 'BM',
-    name: 'Bakso Mas Joko',
-    owner: 'Joko Prasetyo',
-    category: 'Bakso & Soto',
-    location: 'Jl. Bojongsoang',
-    rating: 4.6,
-    reviews: 76,
-    status: 'Nonaktif',
-  },
-  {
-    id: 4,
-    initials: 'AB',
-    name: 'Ayam Bakar 99',
-    owner: 'Dedi Kurniawan',
-    category: 'Ayam & Bebek',
-    location: 'Jl. Sukapura',
-    rating: 4.9,
-    reviews: 204,
-    status: 'Aktif',
-  },
-  {
-    id: 5,
-    initials: 'WK',
-    name: 'Warung Kopi Sudut',
-    owner: 'Aldi Pratama',
-    category: 'Minuman',
-    location: 'Jl. Ciganitri',
-    rating: 4.4,
-    reviews: 42,
-    status: 'Menunggu Verifikasi',
-  },
-]
 
-const filters = ['Semua', 'Aktif', 'Nonaktif', 'Menunggu Verifikasi']
+import { usePagedApi } from '../../services/useRemote'
+import { saveData } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+import { warungView } from '../../services/viewModels'
+import { useNavigate } from 'react-router-dom'
+const filters = ['Semua', 'Aktif', 'Nonaktif']
 
 function AdminWarungs() {
-  const [warungs, setWarungs] = useState(initialWarungs)
+  const remote = usePagedApi('/admin/warungs', warungView)
+  const warungs = remote.items
+  const navigate = useNavigate()
   const [keyword, setKeyword] = useState('')
   const [activeFilter, setActiveFilter] = useState('Semua')
   const [openMenuId, setOpenMenuId] = useState(null)
@@ -88,20 +39,15 @@ function AdminWarungs() {
     pending: warungs.filter((warung) => warung.status === 'Menunggu Verifikasi').length,
   }
 
-  function updateStatus(id, status) {
-    setWarungs((current) =>
-      current.map((warung) =>
-        warung.id === id ? { ...warung, status } : warung,
-      ),
-    )
-    setOpenMenuId(null)
+  async function updateStatus(id, status) {
+    if (await remote.run(() => saveData(`/admin/warungs/${id}`, 'PATCH', { isActive: status === 'Aktif' }))) setOpenMenuId(null)
   }
 
   return (
     <section className="admin-warungs">
       <div className="admin-page-heading">
         <div>
-          <h1>Data Warung</h1>
+          <h1>Data Warung</h1><RemoteStatus remote={remote} /><Pagination remote={remote} /><p>Statistik, pencarian dan filter di bawah berlaku pada halaman ini. Pengajuan baru ada di menu Pengajuan UMKM.</p>
           <p>Kelola seluruh data warung yang terdaftar di LaperU.</p>
         </div>
       </div>
@@ -234,7 +180,7 @@ function AdminWarungs() {
                         <button
                           type="button"
                           onClick={() => {
-                            alert(`Detail ${warung.name} akan dibuat di halaman berikutnya.`)
+                            navigate(`/restaurants/${warung.slug}`)
                             setOpenMenuId(null)
                           }}
                         >

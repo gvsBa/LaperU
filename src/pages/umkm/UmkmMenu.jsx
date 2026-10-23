@@ -1,11 +1,10 @@
 import { useState } from 'react'
 
-const initialMenus = [
-  { id: 1, name: 'Ayam Kremes', price: 15000, status: 'tersedia' },
-  { id: 2, name: 'Mie ayam', price: 10000, status: 'tersedia' },
-  { id: 3, name: 'Bubur Ayam', price: 12000, status: 'habis' },
-  { id: 4, name: 'Kopi', price: 5000, status: 'tersedia' },
-]
+import { useRemote } from '../../services/useRemote'
+import { privateApi, saveData, uploadImage } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import { menuView } from '../../services/viewModels'
+const loadMenus = async signal => (await privateApi('/umkm/menus', { signal })).map(menuView)
 
 const statusLabels = {
   tersedia: 'Tersedia',
@@ -18,7 +17,9 @@ function formatPrice(price) {
 }
 
 function UmkmMenu() {
-  const [menus, setMenus] = useState(initialMenus)
+  const remote = useRemote(loadMenus, [])
+  const menus = remote.data
+  const setMenus = remote.setData
   const [editingId, setEditingId] = useState(null)
 
   const editingMenu = menus.find((menu) => menu.id === editingId)
@@ -36,27 +37,24 @@ function UmkmMenu() {
     )
   }
 
-  function toggleMenuStatus(id) {
-    setMenus((currentMenus) =>
-      currentMenus.map((menu) => {
-        if (menu.id !== id) return menu
-
-        if (menu.status === 'nonaktif') {
-          return { ...menu, status: menu.previousStatus || 'tersedia' }
-        }
-
-        return {
-          ...menu,
-          previousStatus: menu.status,
-          status: 'nonaktif',
-        }
-      })
-    )
+  async function toggleMenuStatus(id) {
+    const item = menus.find(menu => menu.id === id)
+    await remote.run(() => saveData(`/umkm/menus/${id}`, 'PATCH', { isActive: item.status === 'nonaktif' }))
+    setEditingId(null)
+  }
+  async function saveMenu(event) {
+    event.preventDefault()
+    const file = new FormData(event.currentTarget).get('photo')
+    if (await remote.run(async () => {
+      const body = { name: editingMenu.name, price: editingMenu.price, isActive: editingMenu.status !== 'nonaktif', isAvailable: editingMenu.status !== 'habis' }
+      if (file?.size) body.photoUrl = (await uploadImage(file)).url
+      await saveData(editingId === 'new' ? '/umkm/menus' : `/umkm/menus/${editingId}`, editingId === 'new' ? 'POST' : 'PATCH', body)
+    })) setEditingId(null)
   }
 
   return (
     <section className="umkm-menu">
-      <h1>Kelola Menu</h1>
+      <h1>Kelola Menu</h1><RemoteStatus remote={remote} /><button className="admin-button" disabled={remote.busy || !!editingId} onClick={() => { setMenus(items => [...items, { id: 'new', name: '', price: 0, status: 'tersedia' }]); setEditingId('new') }}>Tambah Menu</button>
 
       <div className="umkm-menu__card">
         <div className="umkm-menu__table-wrap">
@@ -75,10 +73,7 @@ function UmkmMenu() {
               {menus.map((menu) => (
                 <tr key={menu.id}>
                   <td>
-                    <div
-                      className="umkm-menu__photo-placeholder"
-                      aria-label={`Placeholder foto ${menu.name}`}
-                    />
+                    {menu.photoUrl ? <img src={menu.photoUrl} alt={menu.name} style={{ width: 60, height: 60, objectFit: 'cover' }} /> : <div className="umkm-menu__photo-placeholder" aria-label="Foto belum diunggah" />}
                   </td>
                   <td>{menu.name}</td>
                   <td>{formatPrice(menu.price)}</td>
@@ -104,6 +99,7 @@ function UmkmMenu() {
                       <button
                         type="button"
                         className="umkm-menu__button"
+                        disabled={remote.busy || menu.id === 'new'}
                         onClick={() => toggleMenuStatus(menu.id)}
                       >
                         {menu.status === 'nonaktif'
@@ -121,18 +117,15 @@ function UmkmMenu() {
         {editingMenu && (
           <form
             className="umkm-menu__editor"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setEditingId(null)
-            }}
+            onSubmit={saveMenu}
           >
-            <h2>Ubah Menu</h2>
+            <h2>{editingId === "new" ? "Tambah Menu" : "Ubah Menu"}</h2><label>Foto menu (JPG/PNG, maks 2 MB)<input name="photo" type="file" accept="image/jpeg,image/png" /></label>
 
             <div className="umkm-menu__editor-grid">
               <label>
                 <span>Nama Menu</span>
                 <input
-                  value={editingMenu.name}
+                  required minLength={2} maxLength={160} value={editingMenu.name}
                   onChange={(event) =>
                     updateMenu(editingMenu.id, 'name', event.target.value)
                   }
@@ -161,7 +154,7 @@ function UmkmMenu() {
                 >
                   <option value="tersedia">Tersedia</option>
                   <option value="habis">Habis</option>
-                  <option value="nonaktif">Nonaktif</option>
+                  {editingId !== 'new' && <option value="nonaktif">Nonaktif</option>}
                 </select>
               </label>
             </div>
@@ -170,11 +163,11 @@ function UmkmMenu() {
               <button
                 type="button"
                 className="umkm-menu__cancel"
-                onClick={() => setEditingId(null)}
+                onClick={() => { setEditingId(null); remote.reload() }}
               >
                 Batal
               </button>
-              <button type="submit" className="umkm-menu__save">
+              <button type="submit" disabled={remote.busy} className="umkm-menu__save">
                 Simpan
               </button>
             </div>

@@ -39,7 +39,9 @@ customerRouter.delete('/favorites/:id', validate(idParamSchema, 'params'), async
 }))
 
 customerRouter.get('/reviews', validate(reviewListSchema, 'query'), asyncHandler(async (req, res) => {
-  const query = req.query as unknown as { limit: number; page: number }
+  const query = req.query as unknown as { limit: number; page: number; warungId?: string }
+  const condition = query.warungId ? ' AND r.warung_id = ?' : ''
+  const params = query.warungId ? [req.auth!.sub, query.warungId] : [req.auth!.sub]
   const offset = (query.page - 1) * query.limit
   const [rows] = await pool.query<GenericRow[]>(
     `SELECT r.id, r.warung_id AS warungId, w.name AS warungName, w.slug AS warungSlug,
@@ -50,10 +52,10 @@ customerRouter.get('/reviews', validate(reviewListSchema, 'query'), asyncHandler
       rr.reply_text AS umkmReply, rr.updated_at AS repliedAt
      FROM reviews r JOIN warungs w ON w.id = r.warung_id
      LEFT JOIN review_replies rr ON rr.review_id = r.id
-     WHERE r.user_id = ? ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
-    [req.auth!.sub, query.limit, offset],
+     WHERE r.user_id = ?${condition} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+    [...params, query.limit, offset],
   )
-  const [count] = await pool.query<Array<RowDataPacket & { total: number }>>('SELECT COUNT(*) AS total FROM reviews WHERE user_id = ?', [req.auth!.sub])
+  const [count] = await pool.query<Array<RowDataPacket & { total: number }>>(`SELECT COUNT(*) AS total FROM reviews r WHERE r.user_id = ?${condition}`, params)
   const total = count[0]?.total ?? 0
   sendOk(res, { items: rows, pagination: { limit: query.limit, page: query.page, total, totalPages: Math.ceil(total / query.limit) } })
 }))
@@ -98,6 +100,13 @@ customerRouter.delete('/reviews/:id', validate(idParamSchema, 'params'), asyncHa
   const [result] = await pool.execute<ResultSetHeader>('DELETE FROM reviews WHERE id = ? AND user_id = ?', [id, req.auth!.sub])
   if (!result.affectedRows) throw new ApiError(404, 'REVIEW_NOT_FOUND', 'Ulasan tidak ditemukan.')
   sendOk(res, null, 200, 'Ulasan berhasil dihapus.')
+}))
+
+customerRouter.get('/reports', asyncHandler(async (req, res) => {
+  const [rows] = await pool.execute<GenericRow[]>(
+    'SELECT id, target_type AS targetType, target_id AS targetId, reason, detail, status, admin_note AS adminNote, created_at AS createdAt FROM reports WHERE reporter_id = ? ORDER BY created_at DESC LIMIT 100', [req.auth!.sub],
+  )
+  sendOk(res, rows)
 }))
 
 customerRouter.post('/reports', validate(reportSchema), asyncHandler(async (req, res) => {

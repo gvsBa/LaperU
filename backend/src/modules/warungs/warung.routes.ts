@@ -26,7 +26,7 @@ export const publicWarungRouter = Router()
 publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(async (req, res) => {
   const query = req.query as unknown as {
     category?: string; facility?: string; latitude?: number; limit: number; longitude?: number; maxPrice?: number; minPrice?: number
-    minRating?: number; openNow?: boolean; page: number; payment?: string; q?: string; radiusKm?: number
+    minRating?: number; openNow?: boolean; page: number; payment?: string; q?: string; radiusKm?: number; sort?: 'recommended' | 'rating' | 'cheapest' | 'nearest'
   }
   const where = [`w.approval_status = 'APPROVED'`, `w.is_active = 1`]
   const params: Array<string | number> = []
@@ -65,17 +65,21 @@ publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(as
   if (query.minRating !== undefined) { where.push(`${ratingExpression} >= ?`); params.push(query.minRating) }
   if (query.openNow) where.push(`${openExpression} = 1`)
 
+  const ordering = query.sort === 'cheapest' ? 'w.price_min IS NULL ASC, w.price_min ASC, rating DESC'
+    : query.sort === 'nearest' || (!query.sort && query.latitude !== undefined) ? 'distanceKm ASC, rating DESC'
+      : 'rating DESC, reviewCount DESC'
   const whereSql = where.join(' AND ')
   const offset = (query.page - 1) * query.limit
   const [rows] = await pool.query<GenericRow[]>(
     `SELECT w.id, w.name, w.slug, w.address, w.latitude, w.longitude, w.price_min AS priceMin,
       w.price_max AS priceMax, w.status_override AS statusOverride, w.updated_at AS updatedAt,
+      (SELECT p.url FROM photos p WHERE p.warung_id = w.id ORDER BY p.sort_order, p.id LIMIT 1) AS photoUrl,
       c.name AS category, ${distanceSelect}, ${ratingExpression} AS rating,
       (SELECT COUNT(*) FROM reviews r WHERE r.warung_id = w.id AND r.status = 'VISIBLE') AS reviewCount,
       ${openExpression} AS isOpen
      FROM warungs w LEFT JOIN categories c ON c.id = w.category_id
      WHERE ${whereSql}
-     ORDER BY ${query.latitude !== undefined ? 'distanceKm ASC,' : ''} rating DESC, reviewCount DESC, w.name ASC LIMIT ? OFFSET ?`,
+     ORDER BY ${ordering}, w.name ASC LIMIT ? OFFSET ?`,
     [...selectParams, ...params, query.limit, offset],
   )
   const [countRows] = await pool.query<CountRow[]>(`SELECT COUNT(*) AS total FROM warungs w WHERE ${whereSql}`, params)

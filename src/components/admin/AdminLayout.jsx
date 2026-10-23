@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from '../../auth/useAuth';
 import Logo from "../common/Logo";
 
 const navigation = [
@@ -67,6 +68,7 @@ function AdminIcon({ name }) {
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const { logout, error } = useAuth();
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   return (
     <div className="admin-shell">
@@ -101,6 +103,7 @@ function AdminLayout() {
       </aside>
 
       <main className="admin-main">
+        {error && <p role="alert">{error}</p>}
         {isLogoutOpen && (
           <div className="logout-modal">
             <div className="logout-modal__card" role="dialog" aria-modal="true">
@@ -119,7 +122,7 @@ function AdminLayout() {
                 <button
                   type="button"
                   className="logout-modal__confirm"
-                  onClick={() => navigate("/explore")}
+                  onClick={async () => { try { await logout(); navigate("/explore") } catch { /* Displayed by AuthProvider. */ } }}
                 >
                   Ya, Keluar
                 </button>

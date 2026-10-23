@@ -62,7 +62,7 @@ umkmRouter.use(authenticate, requireRole('UMKM'))
 
 umkmRouter.get('/application', asyncHandler(async (req, res) => {
   const [rows] = await pool.execute<GenericRow[]>(
-    `SELECT up.id, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
+    `SELECT up.id, up.id AS profileId, us.id AS submissionId, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
       up.business_type AS businessType, up.storefront_photo_url AS storefrontPhotoUrl,
       us.status, us.admin_note AS adminNote, us.submitted_at AS submittedAt, us.reviewed_at AS reviewedAt
      FROM umkm_profiles up JOIN umkm_submissions us ON us.umkm_profile_id = up.id
@@ -112,7 +112,7 @@ umkmRouter.get('/warung', asyncHandler(async (req, res) => {
   if (!profile.warungId) throw new ApiError(404, 'WARUNG_NOT_READY', 'Warung akan tersedia setelah pengajuan disetujui.')
   const [[rows], [hours], [facilities], [paymentMethods], [photos]] = await Promise.all([
     pool.execute<GenericRow[]>(
-      `SELECT id, name, slug, description, address, phone, latitude, longitude, price_min AS priceMin,
+      `SELECT id, name, slug, category_id AS categoryId, description, address, phone, latitude, longitude, price_min AS priceMin,
         price_max AS priceMax, status_override AS statusOverride, approval_status AS approvalStatus,
         is_active AS isActive, updated_at AS updatedAt FROM warungs WHERE id = ? LIMIT 1`,
       [profile.warungId],
@@ -229,6 +229,7 @@ umkmRouter.get('/reviews', asyncHandler(async (req, res) => {
     `SELECT r.id, u.full_name AS customerName, r.taste_rating AS tasteRating, r.price_rating AS priceRating,
       r.portion_rating AS portionRating, r.cleanliness_rating AS cleanlinessRating,
       r.comfort_rating AS comfortRating, r.speed_rating AS speedRating, r.comment, r.status,
+      (r.taste_rating + r.price_rating + r.portion_rating + r.cleanliness_rating + r.comfort_rating + r.speed_rating) / 6 AS averageRating,
       r.created_at AS createdAt, rr.reply_text AS reply, rr.updated_at AS repliedAt
      FROM reviews r JOIN users u ON u.id = r.user_id
      LEFT JOIN review_replies rr ON rr.review_id = r.id
