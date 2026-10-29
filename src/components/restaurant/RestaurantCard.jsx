@@ -4,7 +4,6 @@ import { useAuth } from '../../auth/useAuth'
 import { addFavorite } from '../../services/restaurantService'
 import Icon from '../common/Icon'
 import ListingNotice from './ListingNotice'
-import FoodArtwork from './FoodArtwork'
 
 function RestaurantCard({ restaurant }) {
   const navigate = useNavigate()
@@ -29,7 +28,7 @@ function RestaurantCard({ restaurant }) {
           className="restaurant-card__image-wrap"
           aria-label={`Lihat ${restaurant.name}`}
         >
-          {restaurant.photoUrl ? <img className="restaurant-card__image" src={restaurant.photoUrl} alt={restaurant.name} loading="lazy" /> : <FoodArtwork category={restaurant.category} />}
+          {restaurant.photoUrl ? <img className="restaurant-card__image" src={restaurant.photoUrl} alt={restaurant.name} loading="lazy" /> : <div className="restaurant-card__image"><span>Foto belum tersedia</span></div>}
         </Link>
 
         <span
@@ -54,7 +53,7 @@ function RestaurantCard({ restaurant }) {
         <div className="restaurant-card__heading">
           <Link to={detailUrl}>{restaurant.name}</Link>
           <span>
-            <Icon name="star" size={15} filled /> {restaurant.reviewCount ? Number(restaurant.rating).toFixed(1) : 'Baru'}
+            <Icon name="star" size={15} filled /> {restaurant.rating}
           </span>
         </div>
 

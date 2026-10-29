@@ -9,7 +9,6 @@ import RemoteStatus from '../../components/common/RemoteStatus'
 import profileAvatar from '../../assets/images/profile-avatar.webp'
 import SiteFooter from '../../components/layout/SiteFooter'
 import ListingNotice from '../../components/restaurant/ListingNotice'
-import FoodArtwork from '../../components/restaurant/FoodArtwork'
 
 const reviewFields = [
   { key: 'taste', label: 'Rasa' },
@@ -185,7 +184,7 @@ function Detail({ slug, user }) {
           </div>
 
           <div className="detail-hero__photos">
-            {restaurant.photos.length ? restaurant.photos.slice(0, 4).map(photo => <img key={photo.id} className="detail-hero__photo" src={photo.url} alt={photo.altText || restaurant.name} loading="lazy" />) : <FoodArtwork category={restaurant.category} />}
+            {restaurant.photos.length ? restaurant.photos.slice(0, 4).map(photo => <img key={photo.id} className="detail-hero__photo" src={photo.url} alt={photo.altText || restaurant.name} />) : <p>Foto warung belum tersedia.</p>}
           </div>
         </section>
 

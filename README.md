@@ -2,6 +2,8 @@
 
 Branch: **integration/frontend-api-2026-10-22**. Baseline desain: **feat/frontend-ui @ 88161f4** (Customer, UMKM, Admin). Pembaruan demo lokal, recovery, dan polish UI: **29 Oktober 2026**.
 
+**Revisi tampilan:** sesuai permintaan pemilik project, pemolesan global 29 Oktober dibatalkan dan presentasi halaman dikembalikan ke baseline integrasi `f1fc70a`. CSS asli `index.css` dan `integration.css` tidak diubah. Recovery/ganti password, validasi, integrasi API, data showcase, sumber data, dan filter katalog tetap dipertahankan. `feature-additions.css` hanya menata fitur tambahan tersebut; ilustrasi emoji dan override tampilan global sudah dihapus. Metadata Bahasa Indonesia tetap dipertahankan.
+
 Jangan menyalin folder backend saja atau merge release lama secara utuh. Integrasi memerlukan service API, autentikasi, route guard, proxy, dependency workspace, serta penghubung aksi pada halaman FE. Desain terbaru tetap menjadi baseline; data contoh dan aksi simulasi diganti API.
 
 ## Mulai di laptop Windows (VS Code + XAMPP)

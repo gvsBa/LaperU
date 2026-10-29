@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import './index.css'
 import './integration.css'
-import './polish.css'
+import './feature-additions.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

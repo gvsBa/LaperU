@@ -30,7 +30,7 @@ Contoh sumber terbaru yang ditemukan:
 - [Aby Food — 4 Juni 2026](https://canteen.telkomuniversity.ac.id/aby-food-surga-kuliner-hemat-di-sukapura/)
 - [Dongmoon — 4 Juni 2026](https://canteen.telkomuniversity.ac.id/dongmoon-dimsum-mentai-favorit-mahasiswa-telkom-university/)
 
-Di Jelajahi, gunakan **Referensi usaha nyata** untuk sumber publik dan **Simulasi demo** untuk perjalanan lengkap menu, ulasan, favorit, dan dashboard. Ilustrasi kategori adalah ilustrasi, bukan foto makanan/usaha tersebut.
+Di Jelajahi, gunakan **Referensi usaha nyata** untuk sumber publik dan **Simulasi demo** untuk perjalanan lengkap menu, ulasan, favorit, dan dashboard. Pada revisi tampilan, ilustrasi kategori tambahan dihapus; bila foto belum tersedia, halaman kembali menggunakan placeholder teks asli. Label asal data tetap terlihat.
 
 ## Menjalankan atau menambahkan data
 
