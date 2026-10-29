@@ -16,7 +16,9 @@ import { privateApi, saveData } from '../../services/managementService';
 import { useRemote } from '../../services/useRemote';
 import { dateLabel } from '../../services/viewModels';
 import RemoteStatus from '../../components/common/RemoteStatus';
-import AccountSecurity from '../../components/account/AccountSecurity';
+const loginSessions = [];
+
+const loginHistory = [];
 
 
 
@@ -88,7 +90,7 @@ function Account() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari makanan atau warung"
+              placeholder="Enter delivery address"
               aria-label="Cari makanan atau warung"
             />
             <button type="submit" aria-label="Cari">
@@ -263,7 +265,170 @@ function ProfilePanel({ profile, stats }) {
   );
 }
 
-function SecurityPanel() { return <AccountSecurity /> }
+function SecurityPanel() {
+  return (
+    <div className="account-panel account-security"><p>Ubah password, 2FA, daftar perangkat, riwayat login dan nonaktif mandiri belum tersedia. Tidak ada perubahan keamanan yang dijalankan dari panel ini.</p><fieldset disabled>
+      <form
+        className="account-card"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <h2>Ubah kata sandi</h2>
+
+        <div className="account-form-grid account-form-grid--three">
+          <label>
+            Kata sandi lama
+            <input type="password" />
+          </label>
+
+          <label>
+            Kata sandi baru
+            <input type="password" />
+          </label>
+
+          <label>
+            Konfirmasi kata sandi
+            <input type="password" />
+          </label>
+        </div>
+
+        <p className="account-help">
+          Minimal 8 karakter dengan kombinasi angka.
+        </p>
+
+        <div className="account-actions">
+          <button
+            type="button"
+            className="account-button account-button--outline"
+          >
+            Batal
+          </button>
+          <button type="submit" className="account-button">
+            Perbarui Sandi
+          </button>
+        </div>
+      </form>
+
+      <form
+        className="account-card account-two-factor"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <h2>Verifikasi dua langkah</h2>
+
+        <label className="account-two-factor__email">
+          Email pemulihan
+          <input type="email" />
+        </label>
+
+        <label className="account-check">
+          <input type="checkbox" />
+          <span>minta kode</span>
+        </label>
+
+        <div className="account-actions">
+          <button
+            type="button"
+            className="account-button account-button--outline"
+          >
+            Batal
+          </button>
+          <button type="submit" className="account-button">
+            Simpan
+          </button>
+        </div>
+      </form>
+
+      <section className="account-card account-table-card">
+        <h2>Sesi login</h2>
+
+        <div className="account-table-wrap">
+          <table className="account-table">
+            <thead>
+              <tr>
+                <th>Perangkat</th>
+                <th>Lokasi</th>
+                <th>Terakhir aktif</th>
+                <th aria-label="Aksi" />
+              </tr>
+            </thead>
+            <tbody>
+              {loginSessions.map((session) => (
+                <tr key={`${session.device}-${session.location}`}>
+                  <td>{session.device}</td>
+                  <td>{session.location}</td>
+                  <td>{session.active}</td>
+                  <td>
+                    <button
+                      className={
+                        session.current
+                          ? "account-table__badge is-current"
+                          : "account-table__action"
+                      }
+                      type="button"
+                    >
+                      {session.current ? "Perangkat ini" : "Keluarkan"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="account-card account-table-card">
+        <div className="account-card__heading">
+          <h2>Riwayat login</h2>
+          <button type="button" className="account-button">
+            Keluar semua sesi
+          </button>
+        </div>
+
+        <div className="account-table-wrap">
+          <table className="account-table">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Perangkat</th>
+                <th>Lokasi</th>
+                <th aria-label="Status" />
+              </tr>
+            </thead>
+            <tbody>
+              {loginHistory.map((history) => (
+                <tr key={`${history.time}-${history.device}`}>
+                  <td>{history.time}</td>
+                  <td>{history.device}</td>
+                  <td>{history.location}</td>
+                  <td>
+                    <span
+                      className={
+                        history.current
+                          ? "account-table__badge is-current"
+                          : "account-table__badge"
+                      }
+                    >
+                      {history.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="account-danger-zone">
+          <button
+            type="button"
+            className="account-button account-button--danger"
+          >
+            Nonaktifkan akun
+          </button>
+        </div>
+      </section>
+    </fieldset></div>
+  );
+}
+
 function ActivityPanel({ activities, onAction, activityFilter, onFilterChange }) {
   const filters = [
     { id: "all", label: "Semua" },

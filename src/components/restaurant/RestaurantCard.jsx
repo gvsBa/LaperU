@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { addFavorite } from '../../services/restaurantService'
 import Icon from '../common/Icon'
-import ListingNotice from './ListingNotice'
 
 function RestaurantCard({ restaurant }) {
   const navigate = useNavigate()
@@ -36,7 +35,7 @@ function RestaurantCard({ restaurant }) {
             restaurant.isOpen ? 'status--open' : 'status--closed'
           }`}
         >
-          {restaurant.isOpen == null ? 'Jam belum dikonfirmasi' : restaurant.isOpen ? 'Buka' : 'Tutup'}
+          {restaurant.isOpen ? 'Buka' : 'Tutup'}
         </span>
 
         <button
@@ -49,7 +48,6 @@ function RestaurantCard({ restaurant }) {
       </div>
 
       <div className="restaurant-card__body">{message && <p role="status">{message}</p>}
-        <ListingNotice restaurant={restaurant} compact />
         <div className="restaurant-card__heading">
           <Link to={detailUrl}>{restaurant.name}</Link>
           <span>

@@ -3,7 +3,6 @@ import Icon from '../../components/common/Icon'
 import { getFeaturedRestaurants } from '../../services/restaurantService'
 import { useRemote } from '../../services/useRemote'
 import RemoteStatus from '../../components/common/RemoteStatus'
-import ListingNotice from '../../components/restaurant/ListingNotice'
 const loadFeatured = signal => getFeaturedRestaurants({ signal })
 
 const categories = [
@@ -11,25 +10,25 @@ const categories = [
     icon: '☕',
     title: 'Sarapan',
     description: 'Awali hari dengan pilihan sarapan yang praktis dan mengenyangkan.',
-    category: 'Nasi',
+    query: 'sarapan',
   },
   {
     icon: '🍜',
     title: 'Makanan Utama',
     description: 'Cari makanan berat favorit buat makan siang sampai malam.',
-    category: 'Ayam',
+    query: 'makanan',
   },
   {
     icon: '🥤',
     title: 'Minuman',
     description: 'Pilihan minuman segar buat nemenin aktivitas di kampus.',
-    category: 'Minuman',
+    query: 'minuman',
   },
   {
     icon: '🍰',
     title: 'Dessert',
     description: 'Yang manis-manis buat nutup hari atau sekadar ngemil.',
-    category: 'Camilan',
+    query: 'dessert',
   },
 ]
 
@@ -102,7 +101,6 @@ function Home() {
                 </Link>
               </div>
 
-              <ListingNotice restaurant={item} compact />
               <div className="home-menu-card__body">
                 <div>
                   <h2>{item.name}</h2>
@@ -124,7 +122,7 @@ function Home() {
               <span className="home-category-card__icon" aria-hidden="true">{category.icon}</span>
               <h3>{category.title}</h3>
               <p>{category.description}</p>
-              <Link to={`/explore?category=${encodeURIComponent(category.category)}`}>Jelajahi Menu</Link>
+              <Link to={`/explore?q=${category.query}`}>Jelajahi Menu</Link>
             </article>
           ))}
         </div>

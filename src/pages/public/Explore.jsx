@@ -22,7 +22,7 @@ const sortOptions = [
 function Explore() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') || '')
-  const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || 'Semua')
+  const [activeCategory, setActiveCategory] = useState('Semua')
   const [filterOpen, setFilterOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [priceBand, setPriceBand] = useState('all')
@@ -41,7 +41,6 @@ function Explore() {
   const meta = useRemote(loadMeta)
   const categories = ['Semua', ...(meta.data?.categories || []).map(item => item.name)]
   const [page, setPage] = useState(1)
-  const [dataset, setDataset] = useState('')
   const [coordinates, setCoordinates] = useState(null)
   const [locationError, setLocationError] = useState('')
   function chooseSort(value) {
@@ -53,13 +52,13 @@ function Explore() {
 
   const categorySlug = meta.data?.categories.find(item => item.name === activeCategory)?.slug
   const queryText = searchParams.get('q') || ''
-  const loader = useCallback(signal => listWarungs({ dataset: dataset || undefined, q: queryText || undefined, category: categorySlug,
+  const loader = useCallback(signal => listWarungs({ q: queryText || undefined, category: categorySlug,
     minPrice: priceBand === '20to30' ? 20000 : priceBand === 'above30' ? 30001 : undefined,
     maxPrice: priceBand === 'under20' ? 19999 : priceBand === '20to30' ? 30000 : undefined,
     minRating: minRating === 'all' ? undefined : minRating, openNow: openNow || undefined,
     facility: facility === 'all' ? undefined : facility, payment: payment === 'all' ? undefined : payment,
     sort: sortBy, ...(sortBy === 'nearest' ? coordinates : {}), page, limit: 12,
-  }, { signal }), [dataset, queryText, categorySlug, priceBand, minRating, openNow, facility, payment, sortBy, coordinates, page])
+  }, { signal }), [queryText, categorySlug, priceBand, minRating, openNow, facility, payment, sortBy, coordinates, page])
   const remote = useRemote(loader)
   const filteredRestaurants = remote.data?.items || []
 
@@ -84,7 +83,6 @@ function Explore() {
   }
 
   function resetExplore() {
-    setDataset('')
     setPage(1)
     setQuery('')
     setActiveCategory('Semua')
@@ -149,9 +147,6 @@ function Explore() {
       )}
 
       <main className="explore-main">
-        <section className="catalog-intro"><span className="section-eyebrow">JELAJAHI SEKITAR KAMPUS</span><p>Referensi usaha nyata bersumber dari direktori publik. Menu, rating dan aktivitas pada usaha <strong>Simulasi</strong> adalah data fiktif untuk demo.</p>
-          <div className="catalog-tabs" role="group" aria-label="Jenis katalog">{[['', 'Semua katalog'], ['reference', 'Referensi usaha nyata'], ['simulation', 'Simulasi demo']].map(([value, label]) => <button key={value} type="button" aria-pressed={dataset === value} onClick={() => { setDataset(value); setPage(1) }}>{label}</button>)}</div>
-        </section>
         <RemoteStatus remote={remote} /><RemoteStatus remote={meta} />{locationError && <p role="alert">{locationError}</p>}
         <div className="category-tabs" aria-label="Kategori warung">
           {categories.map((category) => (

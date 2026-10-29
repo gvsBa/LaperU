@@ -31,8 +31,8 @@ function Register() {
       setMessage('Masukkan alamat email yang valid.')
       return
     }
-    if (form.password.length < 8 || new TextEncoder().encode(form.password).length > 72 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
-      setMessage('Password minimal 8 karakter, maksimal 72 byte UTF-8, mengandung huruf serta angka.')
+    if (form.password.length < 8 || form.password.length > 72 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
+      setMessage('Password harus 8–72 karakter dan mengandung huruf serta angka.')
       return
     }
     if (form.password !== form.confirmPassword) {

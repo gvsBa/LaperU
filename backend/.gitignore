@@ -1,0 +1,2 @@
+# Keep credentials generated before the source rollback private on every checkout.
+.showcase-accounts.local.json

@@ -56,7 +56,7 @@ function Login() {
           Password
           <input name="password" type="password" value={form.password} onChange={updateField} placeholder="Masukkan password" autoComplete="current-password" maxLength={72} disabled={pending || loading} required />
         </label>
-        <p className="auth-help"><Link to="/forgot-password">Lupa kata sandi? Pulihkan dengan kode cadangan</Link></p>
+        <p className="auth-help">Fitur lupa password belum tersedia pada versi ini.</p>
         {message && <p className="auth-form__message" role="alert">{message}</p>}
         <button className="auth-submit" type="submit" disabled={pending || loading}>{pending ? 'Sedang masuk…' : loading ? 'Memuat sesi…' : 'Masuk'}</button>
       </form>

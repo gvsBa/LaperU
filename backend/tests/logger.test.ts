@@ -7,8 +7,8 @@ describe('log credential protection', () => {
     let written = ''
     const logger = pino({ ...loggerOptions, enabled: true }, { write: (chunk: string) => { written += chunk } })
     logger.info({
-      req: { headers: { authorization: 'Bearer private-test-token', cookie: 'private-test-cookie' }, body: { password: 'private-test-password', currentPassword: 'private-test-current', newPassword: 'private-test-new', recoveryCode: 'private-test-code' } },
-      res: { headers: { 'set-cookie': ['private-test-refresh-cookie'] }, body: { data: { codes: ['private-test-recovery'] } } },
+      req: { headers: { authorization: 'Bearer private-test-token', cookie: 'private-test-cookie' }, body: { password: 'private-test-password' } },
+      res: { headers: { 'set-cookie': ['private-test-refresh-cookie'] } },
     }, 'redaction-test')
     expect(written).toContain('redaction-test')
     expect(written).toContain('[REDACTED]')

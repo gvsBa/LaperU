@@ -16,9 +16,7 @@
     "check:offline": "node scripts/check-offline-browser.mjs",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo",
-    "db:seed:showcase": "tsx scripts/seed-showcase.ts --local-demo",
-    "db:backup:local": "tsx scripts/backup-local.ts"
+    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -3,7 +3,6 @@ import { z } from 'zod'
 const booleanQuery = z.enum(['true', 'false']).transform((value) => value === 'true')
 
 export const warungListSchema = z.object({
-  dataset: z.enum(['reference', 'simulation']).optional(),
   category: z.string().trim().min(1).optional(),
   facility: z.string().trim().min(1).optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),

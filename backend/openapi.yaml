@@ -82,76 +82,11 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '401': { $ref: '#/components/responses/Error' }
-  /auth/recovery-codes:
-    post:
-      tags: [Auth]
-      security: [{ bearerAuth: [] }]
-      summary: Membuat lima kode pemulihan offline dengan autentikasi ulang
-      description: Kode 128-bit ditampilkan sekali, disimpan sebagai SHA-256; set lama dihapus. Respons memakai Cache-Control no-store.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [currentPassword]
-              properties:
-                currentPassword: { type: string, minLength: 1, maxLength: 72, writeOnly: true }
-      responses:
-        '201': { $ref: '#/components/responses/Success' }
-        '401': { $ref: '#/components/responses/Error' }
-        '403': { $ref: '#/components/responses/Error' }
-        '422': { $ref: '#/components/responses/Error' }
-        '429': { $ref: '#/components/responses/Error' }
-  /auth/reset-password:
-    post:
-      tags: [Auth]
-      summary: Reset kata sandi memakai email dan kode pemulihan yang disimpan sebelumnya
-      description: Satu keberhasilan membatalkan seluruh set kode dan semua sesi lama. Akun ditangguhkan tidak dapat dipulihkan. Tidak login otomatis; email saja bukan bukti kepemilikan.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, recoveryCode, newPassword]
-              properties:
-                email: { type: string, format: email, maxLength: 190 }
-                recoveryCode: { type: string, minLength: 1, maxLength: 100, writeOnly: true }
-                newPassword: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Mengandung huruf dan angka; maksimal 72 byte UTF-8 }
-      responses:
-        '200': { $ref: '#/components/responses/Success' }
-        '400': { $ref: '#/components/responses/Error' }
-        '422': { $ref: '#/components/responses/Error' }
-        '429': { $ref: '#/components/responses/Error' }
-  /auth/change-password:
-    post:
-      tags: [Auth]
-      security: [{ bearerAuth: [] }]
-      summary: Mengganti kata sandi dengan kata sandi saat ini
-      description: Membatalkan seluruh sesi dan kode pemulihan lama secara atomik; pengguna harus login ulang.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [currentPassword, newPassword]
-              properties:
-                currentPassword: { type: string, minLength: 1, maxLength: 72, writeOnly: true }
-                newPassword: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Mengandung huruf dan angka; maksimal 72 byte UTF-8 }
-      responses:
-        '200': { $ref: '#/components/responses/Success' }
-        '401': { $ref: '#/components/responses/Error' }
-        '403': { $ref: '#/components/responses/Error' }
-        '422': { $ref: '#/components/responses/Error' }
-        '429': { $ref: '#/components/responses/Error' }
   /warungs:
     get:
       tags: [Guest]
       summary: Mencari dan memfilter warung
       parameters:
-        - { name: dataset, in: query, description: Pisahkan referensi publik bersumber dan data simulasi; tanpa parameter menampilkan semua, schema: { type: string, enum: [reference, simulation] } }
         - { name: q, in: query, schema: { type: string } }
         - { name: category, in: query, schema: { type: string } }
         - { name: facility, in: query, schema: { type: string } }

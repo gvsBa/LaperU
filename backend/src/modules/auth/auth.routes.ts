@@ -7,11 +7,8 @@ import { asyncHandler } from '../../utils/async-handler.js'
 import { sendOk } from '../../utils/response.js'
 import { customerRegistrationSchema, loginSchema, umkmRegistrationSchema } from './auth.schemas.js'
 import { getUserById, login, refreshSession, registerCustomer, registerUmkm, revokeRefreshToken } from './auth.service.js'
-import { changePasswordSchema, recoverySetupSchema, resetPasswordSchema } from './auth.schemas.js'
-import { changePassword, generateRecoveryCodes, recoverPassword } from './recovery.service.js'
 
 export const authRouter = Router()
-authRouter.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
 const refreshCookie = 'laperu_refresh_token'
 
 function metadata(req: Request) {
@@ -65,18 +62,4 @@ authRouter.get('/me', authenticate, asyncHandler(async (req, res) => {
   const user = await getUserById(req.auth!.sub)
   if (!user) throw new ApiError(404, 'USER_NOT_FOUND', 'Pengguna tidak ditemukan.')
   sendOk(res, user)
-}))
-
-authRouter.post('/recovery-codes', authenticate, validate(recoverySetupSchema), asyncHandler(async (req, res) => {
-  sendOk(res, await generateRecoveryCodes(req.auth!.sub, req.body.currentPassword), 201)
-}))
-authRouter.post('/reset-password', validate(resetPasswordSchema), asyncHandler(async (req, res) => {
-  await recoverPassword(req.body.email, req.body.recoveryCode, req.body.newPassword)
-  res.clearCookie(refreshCookie, { path: '/api/v1/auth' })
-  sendOk(res, null, 200, 'Kata sandi diperbarui. Masuk kembali dan buat set kode pemulihan baru.')
-}))
-authRouter.post('/change-password', authenticate, validate(changePasswordSchema), asyncHandler(async (req, res) => {
-  await changePassword(req.auth!.sub, req.body.currentPassword, req.body.newPassword)
-  res.clearCookie(refreshCookie, { path: '/api/v1/auth' })
-  sendOk(res, null, 200, 'Kata sandi diperbarui. Semua sesi dan kode pemulihan lama dibatalkan.')
 }))

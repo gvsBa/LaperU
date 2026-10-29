@@ -15,7 +15,6 @@ interface UserRow extends RowDataPacket {
   passwordHash: string
   role: UserRole
   status: UserStatus
-  authVersion: number
 }
 
 interface RefreshRow extends UserRow {
@@ -35,23 +34,23 @@ function duplicateEntry(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY'
 }
 
-function accessToken(user: PublicUser, version: number) {
+function accessToken(user: PublicUser) {
   const options: SignOptions = {
     audience: 'laperu-web',
     expiresIn: env.ACCESS_TOKEN_TTL as SignOptions['expiresIn'],
     issuer: 'laperu-api',
     subject: user.id,
   }
-  return jwt.sign({ role: user.role, version }, env.JWT_ACCESS_SECRET, options)
+  return jwt.sign({ role: user.role }, env.JWT_ACCESS_SECRET, options)
 }
 
 function hashRefreshToken(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-async function createSession(user: PublicUser, metadata: SessionMetadata, connection: PoolConnection | typeof pool = pool, version = 0) {
+async function createSession(user: PublicUser, metadata: SessionMetadata, connection: PoolConnection | typeof pool = pool) {
   const refreshToken = randomBytes(48).toString('base64url')
-  const signedAccessToken = accessToken(user, version)
+  const signedAccessToken = accessToken(user)
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000)
   await connection.execute(
     'INSERT INTO refresh_tokens (id, user_id, token_hash, user_agent, ip_address, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -120,28 +119,16 @@ export async function registerUmkm(input: UmkmRegistrationInput, metadata: Sessi
 }
 
 export async function login(input: LoginInput, metadata: SessionMetadata) {
-  const connection = await pool.getConnection()
-  try {
-    await connection.beginTransaction()
-    // Serialize credential verification and session creation with password resets.
-    const [rows] = await connection.execute<UserRow[]>(
-      'SELECT id, full_name AS fullName, email, password_hash AS passwordHash, role, status, auth_version AS authVersion FROM users WHERE email = ? LIMIT 1 FOR UPDATE',
-      [input.email],
-    )
-    const user = rows[0]
-    if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
-      throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email atau kata sandi salah.')
-    }
-    if (user.status === 'SUSPENDED') throw new ApiError(403, 'ACCOUNT_SUSPENDED', 'Akun sedang ditangguhkan.')
-    const session = await createSession(publicUser(user), metadata, connection, user.authVersion)
-    await connection.commit()
-    return session
-  } catch (error) {
-    await connection.rollback()
-    throw error
-  } finally {
-    connection.release()
+  const [rows] = await pool.execute<UserRow[]>(
+    'SELECT id, full_name AS fullName, email, password_hash AS passwordHash, role, status FROM users WHERE email = ? LIMIT 1',
+    [input.email],
+  )
+  const user = rows[0]
+  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
+    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email atau kata sandi salah.')
   }
+  if (user.status === 'SUSPENDED') throw new ApiError(403, 'ACCOUNT_SUSPENDED', 'Akun sedang ditangguhkan.')
+  return createSession(publicUser(user), metadata)
 }
 
 async function rotateSession(token: string, metadata: SessionMetadata) {
@@ -158,7 +145,7 @@ async function rotateSession(token: string, metadata: SessionMetadata) {
     )
     if (claim.affectedRows !== 1) throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
     const [rows] = await connection.execute<RefreshRow[]>(
-      `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status, u.auth_version AS authVersion
+      `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status
        FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id
        WHERE rt.token_hash = ? LIMIT 1`,
       [hash],
@@ -166,7 +153,7 @@ async function rotateSession(token: string, metadata: SessionMetadata) {
     const row = rows[0]
     if (!row || row.status === 'SUSPENDED') throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
 
-    const session = await createSession(publicUser(row), metadata, connection, row.authVersion)
+    const session = await createSession(publicUser(row), metadata, connection)
     await connection.commit()
     return session
   } catch (error) {

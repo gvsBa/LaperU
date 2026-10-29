@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
@@ -31,9 +31,7 @@ async function checkAccount(email: string, password: string, role: string) {
 try {
   await pool.query('SELECT 1')
   check(true, 'Koneksi database lokal')
-  const directory = new URL('../database/migrations/', import.meta.url)
-  const files = (await readdir(directory)).filter(name => /^\d+_.*\.sql$/.test(name)).sort()
-  const sql = (await Promise.all(files.map(name => readFile(new URL(name, directory), 'utf8')))).join('\n')
+  const sql = await readFile(fileURLToPath(new URL('../database/migrations/001_initial_schema.sql', import.meta.url)), 'utf8')
   const expected = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)].map((match) => match[1]!)
   const [tables] = await pool.query<Array<RowDataPacket & { name: string }>>(
     'SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()',

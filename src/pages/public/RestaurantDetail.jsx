@@ -8,7 +8,6 @@ import { publicReviewView, scoreKeys } from '../../services/viewModels'
 import RemoteStatus from '../../components/common/RemoteStatus'
 import profileAvatar from '../../assets/images/profile-avatar.webp'
 import SiteFooter from '../../components/layout/SiteFooter'
-import ListingNotice from '../../components/restaurant/ListingNotice'
 
 const reviewFields = [
   { key: 'taste', label: 'Rasa' },
@@ -176,7 +175,6 @@ function Detail({ slug, user }) {
       </header>
 
       <main className="detail-main"><RemoteStatus remote={remote} />
-        <ListingNotice restaurant={restaurant} />
         <section className="detail-hero" aria-label={`Galeri ${restaurant.name}`}>
           <div className="detail-hero__title">
             <span>Warung pilihan sekitar Telkom University</span>
@@ -209,7 +207,7 @@ function Detail({ slug, user }) {
               restaurant.isOpen ? 'detail-status is-open' : 'detail-status is-closed'
             }
           >
-            {restaurant.isOpen == null ? 'Jam operasional belum dikonfirmasi' : restaurant.isOpen ? `Buka ${extra.hours}` : 'Sedang tutup'}
+            {restaurant.isOpen ? `Buka ${extra.hours}` : 'Sedang tutup'}
           </span>
         </section>
 

@@ -1,7 +1,7 @@
 # LaperU — handoff backend lokal
 
 Tanggal finalisasi: 29 Oktober 2026. Lokasi: `D:\ASE LAB\laperu-integration`.
-Basis: commit `f1fc70a`, branch `integration/frontend-api-2026-10-22`, ditambah perubahan backend lokal pada sesi ini. Tidak ada push, merge, deployment, langganan atau perubahan source frontend.
+Basis: commit `f1fc70a`, branch `integration/frontend-api-2026-10-22`, ditambah finalisasi backend inti. Setelah rollback yang diminta pemilik project, perubahan terhadap baseline hanya berada di `backend`. Rollback dipublikasikan sebagai commit baru, tanpa force-push, merge, deployment, atau perubahan kredensial.
 
 ## Menjalankan untuk presentasi
 
@@ -20,7 +20,7 @@ npm.cmd run dev:all
 
 API: `http://127.0.0.1:3000/api/v1`. Pemeriksaan database: `/health/database`. Backend secara default hanya mendengarkan `127.0.0.1`; tidak perlu membuka akses jaringan publik. `HOST` adalah konfigurasi opsional, bukan alasan untuk membuka firewall.
 
-**Pembaruan 29 Oktober 2026:** database lokal berisi 21 tabel. Akun ADMIN, CUSTOMER dan UMKM aktif, dan kredensial lokal cocok dengan hash di database. Backup tersimpan lokal sebelum migrasi tambahan. Data bisnis serta password yang sudah ada tidak ditimpa. Pemeriksaan `check:local` bersifat baca-saja, bukan pengganti pengujian browser.
+**Skema versi ini:** 19 tabel inti dari migrasi 001. Akun ADMIN, CUSTOMER dan UMKM tetap memakai kredensial lokal yang ada. Rollback source tidak menghapus database: laptop yang sudah menjalankan migrasi 002 masih memiliki dua tabel tambahan dan data showcase sebelumnya, tetapi kode versi ini tidak memerlukan tabel tambahan tersebut. Tidak ada downgrade SQL atau reset password yang dijalankan. Pemeriksaan `check:local` hanya memeriksa ketersediaan 19 tabel yang diperlukan, bukan menyatakan jumlah total tabel adalah 19.
 
 ## Akun presentasi
 
@@ -36,7 +36,6 @@ Untuk komputer baru / database kosong saja, setelah dependency terpasang dan `ba
 npm.cmd run db:migrate --workspace @laperu/backend
 npm.cmd run db:seed --workspace @laperu/backend
 npm.cmd run db:seed:demo --workspace @laperu/backend
-npm.cmd run db:seed:showcase --workspace @laperu/backend
 ```
 
 Tidak perlu menjalankan `npm ci` setiap kali presentasi. Instalasi dependency pada komputer baru biasanya perlu internet; aplikasi inti di laptop yang sudah disiapkan tidak memerlukan hosting atau layanan berbayar. Jangan mengganti `.env` dengan contoh bila konfigurasi laptop sudah benar.
@@ -66,9 +65,7 @@ Seed demo tidak mereset akun lama. Jika kredensial yang tersimpan berbeda dari d
 - JSON rusak ditolak dengan 400; JSON terlalu besar dengan 413, bukan kesalahan internal 500.
 - Authorization, cookie sesi, Set-Cookie, dan password pada log request disamarkan.
 - Seed demo diuji dua kali pada database sementara, memakai file kredensial QA terpisah dari kredensial presentasi.
-- Migrasi `002_recovery_and_provenance.sql` menambah `users.auth_version`, `recovery_codes`, dan `listing_sources`. Kamus/ERD lama 19 tabel adalah snapshot sebelum pembaruan ini; rincian tambahan ada di `docs/SHOWCASE_AND_RECOVERY.md`.
-- Ganti password/reset memakai kode offline mengunci akun dalam transaksi, membatalkan seluruh sesi dan kode lama; login juga diserialisasi dengan perubahan password.
-- UI keamanan Customer, Admin (halaman /account) dan UMKM memakai komponen recovery yang sama. Tema dan struktur halaman asli tetap dipertahankan.
+- Struktur 19 tabel inti tidak berubah; migrasi dan fitur recovery/showcase tambahan dibatalkan dari source. Database lokal yang sudah terisi tidak dihapus.
 
 ## Bukti pengujian dan cara mengulang
 
@@ -87,7 +84,7 @@ npm.cmd run check:offline --workspace @laperu/backend
 ```
 
 - `npm run check`: 44 tes backend, 98 tes frontend, typecheck, lint, validasi OpenAPI dan build lolos.
-- Runner MariaDB sementara mencakup 26 tes integrasi API dan 20 skenario browser, termasuk recovery, concurrency, pemisahan data sumber, kategori beranda, serta katalog desktop/mobile. Hasil browser aktual terakhir tersedia di `test-results/browser-smoke.json`.
+- Runner MariaDB sementara untuk versi ini: 17 tes integrasi API dan 17 skenario browser lintas peran. Hasil browser terakhir tersedia di `test-results/browser-smoke.json`.
 - Pemeriksaan offline: login dan pemuatan data ADMIN, CUSTOMER, UMKM lolos dengan browser hanya diizinkan mengakses localhost; tidak ada permintaan eksternal atau JavaScript exception pada tiga halaman yang diuji.
 - Lingkungan: Windows, Node.js 24.15.0, MariaDB XAMPP 10.4.32, Chromium headless 153.0.8010.12.
 - Runner hanya membersihkan instance/database/folder sementara yang dibuat sendiri; tidak menghapus database presentasi. Hasil browser tersimpan di `test-results/` dan diabaikan Git.
@@ -96,7 +93,7 @@ npm.cmd run check:offline --workspace @laperu/backend
 ## Batas yang harus disampaikan dengan jujur
 
 - Handoff ini memfinalkan backend untuk flow yang tersedia, bukan mengklaim semua ide dalam desain sudah diimplementasikan.
-- Reset password offline sudah tersedia, tetapi bukan melalui email/OTP. Kode harus disimpan sebelum kehilangan akses. Tanpa password maupun kode, tidak ada bypass otomatis; nama/email bukan bukti kepemilikan. 2FA, manajemen perangkat, perubahan profil akun dan hapus foto galeri bukan fitur versi ini.
+- Lupa/ganti password, 2FA, manajemen perangkat, perubahan profil akun dan hapus foto galeri belum tersedia/terhubung pada versi ini. Frontend kembali ke baseline tim; jangan menjanjikan fitur yang tidak tersedia.
 - Tautan rute Google Maps tetap membutuhkan internet ketika dibuka. Aplikasi dan data lokal tidak menggantikan layanan peta eksternal. Foto yang sengaja diisi menggunakan URL eksternal juga membutuhkan koneksi; gunakan upload lokal untuk demo offline.
 - Pengujian browser otomatis menggunakan Chromium; bukan bukti pengujian Safari atau seluruh perangkat fisik.
 - Pemeriksaan offline memblokir permintaan HTTP eksternal di browser, bukan mematikan jaringan sistem operasi. Login dan data halaman tiga peran diuji; fungsi yang memang eksternal tidak dijamin offline.

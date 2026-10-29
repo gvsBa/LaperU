@@ -23,14 +23,6 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(72),
 })
 
-export const recoverySetupSchema = z.object({ currentPassword: z.string().min(1).max(72) })
-export const resetPasswordSchema = z.object({
-  email,
-  recoveryCode: z.string().trim().min(1).max(100),
-  newPassword: password,
-})
-export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(72), newPassword: password })
-
 export type CustomerRegistrationInput = z.infer<typeof customerRegistrationSchema>
 export type UmkmRegistrationInput = z.infer<typeof umkmRegistrationSchema>
 export type LoginInput = z.infer<typeof loginSchema>
