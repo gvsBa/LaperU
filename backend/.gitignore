@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+*.local.json
+*.local/
+node_modules/
+dist/
+uploads/
+test-data/generated/
+*.log

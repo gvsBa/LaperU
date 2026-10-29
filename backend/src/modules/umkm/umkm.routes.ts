@@ -62,7 +62,7 @@ umkmRouter.use(authenticate, requireRole('UMKM'))
 
 umkmRouter.get('/application', asyncHandler(async (req, res) => {
   const [rows] = await pool.execute<GenericRow[]>(
-    `SELECT up.id, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
+    `SELECT up.id, up.id AS profileId, us.id AS submissionId, up.business_name AS businessName, up.owner_name AS ownerName, up.phone, up.address,
       up.business_type AS businessType, up.storefront_photo_url AS storefrontPhotoUrl,
       us.status, us.admin_note AS adminNote, us.submitted_at AS submittedAt, us.reviewed_at AS reviewedAt
      FROM umkm_profiles up JOIN umkm_submissions us ON us.umkm_profile_id = up.id
@@ -74,36 +74,58 @@ umkmRouter.get('/application', asyncHandler(async (req, res) => {
 }))
 
 umkmRouter.patch('/application', validate(applicationUpdateSchema), asyncHandler(async (req, res) => {
-  const profile = await getProfile(req.auth!.sub)
-  if (!['DRAFT', 'REVISION'].includes(profile.submissionStatus)) {
-    throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat diubah pada status saat ini.')
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const application = await lockEditableApplication(req.auth!.sub, connection)
+    const { assignments, values } = buildUpdate(req.body, {
+      address: 'address', businessName: 'business_name', businessType: 'business_type',
+      ownerName: 'owner_name', phone: 'phone', storefrontPhotoUrl: 'storefront_photo_url',
+    })
+    await connection.execute(`UPDATE umkm_profiles SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, String(application.id)])
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
-  const { assignments, values } = buildUpdate(req.body, {
-    address: 'address', businessName: 'business_name', businessType: 'business_type',
-    ownerName: 'owner_name', phone: 'phone', storefrontPhotoUrl: 'storefront_photo_url',
-  })
-  await pool.execute(`UPDATE umkm_profiles SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, profile.id])
   sendOk(res, null, 200, 'Data pengajuan berhasil disimpan.')
 }))
 
-umkmRouter.post('/application/submit', asyncHandler(async (req, res) => {
-  const [rows] = await pool.execute<GenericRow[]>(
+async function lockEditableApplication(userId: string, connection: PoolConnection) {
+  const [rows] = await connection.execute<GenericRow[]>(
     `SELECT up.id, up.business_name, up.owner_name, up.phone, up.address, up.storefront_photo_url, us.status
-     FROM umkm_profiles up JOIN umkm_submissions us ON us.umkm_profile_id = up.id
-     WHERE up.user_id = ? LIMIT 1`,
-    [req.auth!.sub],
+     FROM umkm_submissions us JOIN umkm_profiles up ON up.id = us.umkm_profile_id
+     WHERE up.user_id = ? LIMIT 1 FOR UPDATE`,
+    [userId],
   )
   const application = rows[0]
   if (!application) throw new ApiError(404, 'UMKM_PROFILE_NOT_FOUND', 'Profil UMKM tidak ditemukan.')
-  if (!['DRAFT', 'REVISION'].includes(String(application.status))) throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat dikirim pada status saat ini.')
-  if (!application.business_name || !application.owner_name || !application.phone || !application.address || !application.storefront_photo_url) {
-    throw new ApiError(422, 'APPLICATION_INCOMPLETE', 'Lengkapi identitas dan foto tampak depan warung sebelum mengajukan.')
+  if (!['DRAFT', 'REVISION'].includes(String(application.status))) throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat diubah atau dikirim pada status saat ini.')
+  return application
+}
+
+umkmRouter.post('/application/submit', asyncHandler(async (req, res) => {
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const application = await lockEditableApplication(req.auth!.sub, connection)
+    if (!application.business_name || !application.owner_name || !application.phone || !application.address || !application.storefront_photo_url) {
+      throw new ApiError(422, 'APPLICATION_INCOMPLETE', 'Lengkapi identitas dan foto tampak depan warung sebelum mengajukan.')
+    }
+    await connection.execute(
+      `UPDATE umkm_submissions SET status = 'PENDING', admin_note = NULL, submitted_at = NOW(), reviewed_at = NULL, reviewed_by = NULL
+       WHERE umkm_profile_id = ?`,
+      [String(application.id)],
+    )
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
-  await pool.execute(
-    `UPDATE umkm_submissions SET status = 'PENDING', admin_note = NULL, submitted_at = NOW(), reviewed_at = NULL
-     WHERE umkm_profile_id = ?`,
-    [String(application.id)],
-  )
   sendOk(res, null, 200, 'Pengajuan berhasil dikirim untuk diverifikasi.')
 }))
 
@@ -112,7 +134,7 @@ umkmRouter.get('/warung', asyncHandler(async (req, res) => {
   if (!profile.warungId) throw new ApiError(404, 'WARUNG_NOT_READY', 'Warung akan tersedia setelah pengajuan disetujui.')
   const [[rows], [hours], [facilities], [paymentMethods], [photos]] = await Promise.all([
     pool.execute<GenericRow[]>(
-      `SELECT id, name, slug, description, address, phone, latitude, longitude, price_min AS priceMin,
+      `SELECT id, name, slug, category_id AS categoryId, description, address, phone, latitude, longitude, price_min AS priceMin,
         price_max AS priceMax, status_override AS statusOverride, approval_status AS approvalStatus,
         is_active AS isActive, updated_at AS updatedAt FROM warungs WHERE id = ? LIMIT 1`,
       [profile.warungId],
@@ -229,6 +251,7 @@ umkmRouter.get('/reviews', asyncHandler(async (req, res) => {
     `SELECT r.id, u.full_name AS customerName, r.taste_rating AS tasteRating, r.price_rating AS priceRating,
       r.portion_rating AS portionRating, r.cleanliness_rating AS cleanlinessRating,
       r.comfort_rating AS comfortRating, r.speed_rating AS speedRating, r.comment, r.status,
+      (r.taste_rating + r.price_rating + r.portion_rating + r.cleanliness_rating + r.comfort_rating + r.speed_rating) / 6 AS averageRating,
       r.created_at AS createdAt, rr.reply_text AS reply, rr.updated_at AS repliedAt
      FROM reviews r JOIN users u ON u.id = r.user_id
      LEFT JOIN review_replies rr ON rr.review_id = r.id

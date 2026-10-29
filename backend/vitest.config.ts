@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     fileParallelism: false,
+    include: ['tests/**/*.test.ts'],
+    exclude: ['tests/integration/**'],
   },
 })

@@ -5,13 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:database:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local-database.ps1",
     "qa:generate-images": "tsx scripts/generate-qa-images.ts",
+    "check:local": "tsx scripts/check-local.ts",
+    "check:api": "tsx scripts/check-api.ts",
+    "setup:local": "tsx scripts/setup-local.ts",
+    "account:security": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/account-security.ps1",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo",
+    "db:seed:showcase": "tsx scripts/seed-showcase.ts --local-demo",
+    "db:backup:local": "tsx scripts/backup-local.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -39,6 +48,6 @@
     "supertest": "^7.2.2",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   }
 }

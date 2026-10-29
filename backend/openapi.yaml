@@ -2,9 +2,14 @@ openapi: 3.1.0
 info:
   title: LaperU API
   version: 0.1.0
-  description: REST API untuk Guest, Customer, UMKM, dan Admin LaperU.
+  description: >-
+    REST API lokal untuk Guest, Customer, UMKM, dan Admin LaperU.
+    Body JSON rusak mendapat 400 INVALID_JSON; body lebih dari 1 MiB mendapat
+    413 PAYLOAD_TOO_LARGE. Login/registrasi/pemulihan/ganti password berbagi batas 30 permintaan per 15 menit
+    per IP di luar mode test (429 jika terlampaui). Pengecekan sesi tidak
+    memakai kuota login. Email dinormalisasi dengan trim dan huruf kecil.
 servers:
-  - url: http://localhost:3000/api/v1
+  - url: http://127.0.0.1:3001/api/v1
 security: []
 tags:
   - { name: System, description: Status layanan dan database }
@@ -77,11 +82,76 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '401': { $ref: '#/components/responses/Error' }
+  /auth/recovery-codes:
+    post:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      summary: Membuat lima kode pemulihan offline dengan autentikasi ulang
+      description: Kode 128-bit ditampilkan sekali, disimpan sebagai SHA-256; set lama dihapus. Respons memakai Cache-Control no-store.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 72, writeOnly: true }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset kata sandi memakai email dan kode pemulihan yang disimpan sebelumnya
+      description: Satu keberhasilan membatalkan seluruh set kode dan semua sesi lama. Akun ditangguhkan tidak dapat dipulihkan. Tidak login otomatis; email saja bukan bukti kepemilikan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, recoveryCode, newPassword]
+              properties:
+                email: { type: string, format: email, maxLength: 190 }
+                recoveryCode: { type: string, minLength: 1, maxLength: 100, writeOnly: true }
+                newPassword: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Mengandung huruf dan angka; maksimal 72 byte UTF-8 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      summary: Mengganti kata sandi dengan kata sandi saat ini
+      description: Membatalkan seluruh sesi dan kode pemulihan lama secara atomik; pengguna harus login ulang.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 72, writeOnly: true }
+                newPassword: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Mengandung huruf dan angka; maksimal 72 byte UTF-8 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /warungs:
     get:
       tags: [Guest]
       summary: Mencari dan memfilter warung
       parameters:
+        - { name: dataset, in: query, description: Pisahkan referensi publik bersumber dan data simulasi; tanpa parameter menampilkan semua, schema: { type: string, enum: [reference, simulation] } }
         - { name: q, in: query, schema: { type: string } }
         - { name: category, in: query, schema: { type: string } }
         - { name: facility, in: query, schema: { type: string } }
@@ -93,6 +163,7 @@ paths:
         - { name: latitude, in: query, schema: { type: number, minimum: -90, maximum: 90 } }
         - { name: longitude, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
         - { name: radiusKm, in: query, description: Membutuhkan latitude dan longitude, schema: { type: number, exclusiveMinimum: 0, maximum: 50 } }
+        - { name: sort, in: query, description: nearest membutuhkan latitude dan longitude; recommended menggunakan rating dan jumlah ulasan, schema: { type: string, enum: [recommended, rating, cheapest, nearest] } }
         - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 12, maximum: 50 } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
@@ -134,6 +205,7 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Melihat riwayat ulasan sendiri
       parameters:
+        - { name: warungId, in: query, schema: { type: string, format: uuid } }
         - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 20, minimum: 1, maximum: 100 } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
@@ -162,6 +234,11 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Id' }]
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /customer/reports:
+    get:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      summary: Melihat maksimal 100 laporan terbaru milik sendiri beserta hasil pemeriksaan
+      responses: { '200': { $ref: '#/components/responses/Success' } }
     post:
       tags: [Customer]
       security: [{ bearerAuth: [] }]
@@ -175,6 +252,7 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Melihat status pengajuan
+      description: Response data menyertakan id profil untuk kompatibilitas, profileId, dan submissionId. Gunakan submissionId untuk endpoint keputusan Admin.
       responses: { '200': { $ref: '#/components/responses/Success' } }
     patch:
       tags: [UMKM]
@@ -195,6 +273,7 @@ paths:
       tags: [UMKM]
       security: [{ bearerAuth: [] }]
       summary: Melihat profil warung sendiri
+      description: Response data menyertakan categoryId (UUID atau null) untuk nilai awal form edit kategori.
       responses: { '200': { $ref: '#/components/responses/Success' } }
     put:
       tags: [UMKM]
@@ -447,6 +526,16 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/ReportStatusUpdate' } } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
+  /admin/reviews:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Daftar ulasan untuk moderasi Admin
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
   /admin/reviews/{id}/status:
     patch:
       tags: [Admin]
@@ -474,9 +563,9 @@ components:
       type: object
       required: [fullName, email, password]
       properties:
-        fullName: { type: string, minLength: 2 }
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8, maxLength: 72 }
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 8, maxLength: 72, description: 'Wajib huruf dan angka; maksimal 72 byte UTF-8, bukan hanya 72 karakter.' }
     UmkmRegistration:
       allOf:
         - { $ref: '#/components/schemas/CustomerRegistration' }
@@ -491,8 +580,8 @@ components:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 1, maxLength: 72 }
     Review:
       type: object
       required: [warungId, tasteRating, priceRating, portionRating, cleanlinessRating, comfortRating, speedRating]
@@ -582,6 +671,7 @@ components:
       properties:
         hours:
           type: array
+          description: Tepat tujuh hari unik, 0=Senin sampai 6=Minggu. Hari operasional (isClosed=false) wajib memiliki openTime dan closeTime, dengan closeTime setelah openTime. Jadwal lintas tengah malam belum didukung.
           minItems: 7
           maxItems: 7
           items:
@@ -589,8 +679,8 @@ components:
             required: [dayOfWeek, openTime, closeTime, isClosed]
             properties:
               dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
-              openTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
-              closeTime: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
+              openTime: { type: [string, 'null'], pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+              closeTime: { type: [string, 'null'], pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
               isClosed: { type: boolean }
     PhotoCreate:
       type: object
