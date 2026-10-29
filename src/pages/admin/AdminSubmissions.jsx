@@ -1,59 +1,26 @@
 import { useMemo, useState } from 'react'
 
-const initialSubmissions = [
-  {
-    id: 1,
-    businessName: 'Sambal Mangga',
-    owner: 'Muhayat',
-    submittedAt: '21 Oktober 2026',
-    status: 'Menunggu',
-    email: 'muhayat@gmail.com',
-    phone: '0812-3456-7890',
-    address: 'Jl. Telekomunikasi No. 1, Bandung',
-    type: 'Makanan & Minuman',
-    description:
-      'Usaha makanan rumahan yang menyediakan sambal mangga, nasi, dan menu pendamping lainnya.',
-    documents: ['KTP Pemilik.jpg', 'Sertifikat Halal.jpg', 'Foto Warung.jpg'],
-  },
-  {
-    id: 2,
-    businessName: 'Soto Pak Odang',
-    owner: 'Odang',
-    submittedAt: '20 Agustus 2026',
-    status: 'Ditolak',
-    email: 'odang@gmail.com',
-    phone: '0812-9988-2211',
-    address: 'Jl. Sukabirus, Bandung',
-    type: 'Makanan',
-    description: 'Warung soto rumahan untuk mahasiswa.',
-    documents: ['KTP Pemilik.jpg', 'Foto Warung.jpg'],
-  },
-  {
-    id: 3,
-    businessName: 'Warteg Podom',
-    owner: 'Podom',
-    submittedAt: '19 April 2026',
-    status: 'Disetujui',
-    email: 'podom@gmail.com',
-    phone: '0812-7788-4455',
-    address: 'Jl. Bojongsoang, Bandung',
-    type: 'Makanan',
-    description: 'Warung makan dengan menu harian.',
-    documents: ['KTP Pemilik.jpg', 'Foto Warung.jpg'],
-  },
-]
+
+import { usePagedApi } from '../../services/useRemote'
+import { privateApi, saveData } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+import { applicationView } from '../../services/viewModels'
 
 const filters = ['Semua', 'Menunggu', 'Perlu Diperbaiki', 'Disetujui', 'Ditolak']
 
 function AdminSubmissions() {
-  const [submissions, setSubmissions] = useState(initialSubmissions)
+  const remote = usePagedApi('/admin/applications', applicationView)
+  const submissions = remote.items
+  const [detail, setDetail] = useState(null)
   const [activeFilter, setActiveFilter] = useState('Semua')
   const [keyword, setKeyword] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [actionMode, setActionMode] = useState('')
   const [note, setNote] = useState('')
 
-  const selectedSubmission = submissions.find((submission) => submission.id === selectedId)
+  const selectedSubmission = detail?.id === selectedId ? detail : null
+  async function inspect(id) { setSelectedId(id); setDetail(null); await remote.run(async () => { setDetail(applicationView(await privateApi(`/admin/applications/${id}`))) }, '') }
 
   const filteredSubmissions = useMemo(() => {
     const search = keyword.trim().toLowerCase()
@@ -76,32 +43,15 @@ function AdminSubmissions() {
     setNote('')
   }
 
-  function updateSubmission(action) {
-    if ((action === 'revision' || action === 'reject') && !note.trim()) {
-      alert('Alasan atau catatan wajib diisi dulu.')
-      return
-    }
-
-    const statusMap = {
-      approve: 'Disetujui',
-      revision: 'Perlu Diperbaiki',
-      reject: 'Ditolak',
-    }
-
-    setSubmissions((current) =>
-      current.map((submission) =>
-        submission.id === selectedId
-          ? { ...submission, status: statusMap[action] }
-          : submission,
-      ),
-    )
-
-    closeDrawer()
+  async function updateSubmission(action) {
+    if ((action === 'revision' || action === 'reject') && note.trim().length < 5) { alert('Alasan minimal 5 karakter.'); return }
+    if (await remote.run(() => saveData(`/admin/applications/${selectedId}/decision`, 'POST', { decision: { approve: 'APPROVED', revision: 'REVISION', reject: 'REJECTED' }[action], ...(note.trim() ? { note: note.trim() } : {}) }))) closeDrawer()
   }
 
   return (
     <section className="admin-submissions">
       <h1>Pengajuan UMKM</h1>
+      <RemoteStatus remote={remote} /><Pagination remote={remote} /><p>Pencarian dan filter berlaku pada halaman ini.</p>
 
       <div className="admin-search">
         <input
@@ -164,7 +114,7 @@ function AdminSubmissions() {
                     <button
                       type="button"
                       className="admin-button"
-                      onClick={() => setSelectedId(submission.id)}
+                      onClick={() => inspect(submission.id)}
                     >
                       Periksa
                     </button>
@@ -241,15 +191,11 @@ function AdminSubmissions() {
               </section>
 
               <section className="admin-detail-section">
-                <h3>Dokumen Pendukung</h3>
+                <h3>Foto tampak depan</h3>
 
                 <div className="admin-document-list">
                   {selectedSubmission.documents.map((document) => (
-                    <button type="button" key={document} className="admin-document">
-                      <span>▣</span>
-                      {document}
-                      <b>↗</b>
-                    </button>
+                    <a key={document} className="admin-document" href={document} target="_blank" rel="noreferrer"><img src={document} alt="Foto pengajuan warung" style={{ maxWidth: '100%', maxHeight: 220 }} /></a>
                   ))}
                 </div>
               </section>
@@ -276,8 +222,8 @@ function AdminSubmissions() {
                   <div>
                     <i />
                     <div>
-                      <strong>Menunggu verifikasi Admin</strong>
-                      <span>Dalam proses</span>
+                      <strong>{selectedSubmission.status}</strong>
+                      <span>{selectedSubmission.description || "Belum ada catatan Admin"}</span>
                     </div>
                   </div>
                 </div>

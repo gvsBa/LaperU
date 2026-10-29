@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { customerRegistrationSchema, loginSchema } from '../src/modules/auth/auth.schemas.js'
 import { reviewSchema } from '../src/modules/customer/customer.schemas.js'
-import { detectImageFormat } from '../src/modules/media/image-upload.js'
+import { defaultUploadPath, detectImageFormat } from '../src/modules/media/image-upload.js'
 import { warungListSchema } from '../src/modules/warungs/warung.schemas.js'
 
 const reviewId = '11111111-1111-4111-8111-111111111111'
 
 describe('validasi data keamanan QA', () => {
+  it('menyimpan upload pada folder yang sama saat development dan sesudah build', () => {
+    const source = new URL('../src/modules/media/image-upload.ts', import.meta.url)
+    const built = new URL('../dist/src/modules/media/image-upload.js', import.meta.url)
+    expect(defaultUploadPath(source.href)).toBe(defaultUploadPath(built.href))
+  })
+  it('menolak password Unicode yang terpotong oleh batas bcrypt 72 byte', () => {
+    const password = 'Aa1' + 'é'.repeat(35)
+    expect(password.length).toBeLessThan(72)
+    expect(customerRegistrationSchema.safeParse({ email: 'user@example.test', fullName: 'Test User', password }).success).toBe(false)
+  })
+
+  it('menormalkan spasi dan kapital email sebelum memvalidasi', () => {
+    expect(loginSchema.parse({ email: ' User@Example.test ', password: 'Valid123' }).email).toBe('user@example.test')
+  })
   it.each([
     ['tanpa-at.example.test', 'Valid123'],
     ["' OR '1'='1", 'Valid123'],
@@ -43,6 +57,9 @@ describe('validasi data keamanan QA', () => {
   })
 
   it('mewajibkan pasangan koordinat untuk filter jarak', () => {
+    expect(warungListSchema.safeParse({ sort: 'nearest' }).success).toBe(false)
+    expect(warungListSchema.safeParse({ sort: 'cheapest' }).success).toBe(true)
+    expect(warungListSchema.safeParse({ sort: 'name; DROP TABLE users' }).success).toBe(false)
     expect(warungListSchema.safeParse({ latitude: -6.97, radiusKm: 3 }).success).toBe(false)
     expect(warungListSchema.safeParse({ latitude: -6.97, longitude: 107.63, radiusKm: 3 }).success).toBe(true)
   })

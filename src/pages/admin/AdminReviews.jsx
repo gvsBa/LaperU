@@ -1,52 +1,17 @@
 import { useMemo, useState } from 'react'
 
-const initialReviews = [
-  {
-    id: 1,
-    name: 'Aldi Pratama',
-    initials: 'AP',
-    warung: 'Warung Nasi Bu Euis',
-    rating: 5,
-    comment: 'Makanannya enak, porsinya banyak, dan harganya cocok buat mahasiswa.',
-    date: '21 Oktober 2026',
-    status: 'Ditampilkan',
-  },
-  {
-    id: 2,
-    name: 'Rani Aulia',
-    initials: 'RA',
-    warung: 'Mie Pedas Teh Rani',
-    rating: 4,
-    comment: 'Rasanya enak, tapi waktu tunggunya cukup lama saat jam makan siang.',
-    date: '20 Oktober 2026',
-    status: 'Menunggu',
-  },
-  {
-    id: 3,
-    name: 'Bima Saputra',
-    initials: 'BS',
-    warung: 'Ayam Bakar 99',
-    rating: 5,
-    comment: 'Sambalnya mantap dan ayamnya masih hangat waktu datang.',
-    date: '19 Oktober 2026',
-    status: 'Ditampilkan',
-  },
-  {
-    id: 4,
-    name: 'Nadia Putri',
-    initials: 'NP',
-    warung: 'Bakso Mas Joko',
-    rating: 2,
-    comment: 'Pesanan saya kurang sesuai dan tempatnya cukup ramai.',
-    date: '18 Oktober 2026',
-    status: 'Menunggu',
-  },
-]
+import { usePagedApi } from '../../services/useRemote'
+import { saveData } from '../../services/managementService'
+import { reviewView } from '../../services/viewModels'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+import AdminReports from './AdminReports'
 
-const filters = ['Semua', 'Ditampilkan', 'Menunggu', 'Disembunyikan']
+const filters = ['Semua', 'Ditampilkan', 'Disembunyikan']
 
 function AdminReviews() {
-  const [reviews, setReviews] = useState(initialReviews)
+  const remote = usePagedApi('/admin/reviews', reviewView)
+  const reviews = remote.items
   const [keyword, setKeyword] = useState('')
   const [activeFilter, setActiveFilter] = useState('Semua')
   const [openMenuId, setOpenMenuId] = useState(null)
@@ -75,21 +40,16 @@ function AdminReviews() {
     hidden: reviews.filter((review) => review.status === 'Disembunyikan').length,
   }
 
-  function updateStatus(id, status) {
-    setReviews((current) =>
-      current.map((review) =>
-        review.id === id ? { ...review, status } : review,
-      ),
-    )
-    setOpenMenuId(null)
+  async function updateStatus(id, status) {
+    if (await remote.run(() => saveData(`/admin/reviews/${id}/status`, 'PATCH', { status: status === 'Ditampilkan' ? 'VISIBLE' : 'HIDDEN' }))) setOpenMenuId(null)
   }
 
   return (
     <section className="admin-reviews">
       <div className="admin-page-heading">
         <div>
-          <h1>Ulasan & Laporan</h1>
-          <p>Moderasi ulasan pengguna sebelum ditampilkan di halaman warung.</p>
+          <h1>Ulasan & Laporan</h1><RemoteStatus remote={remote} /><Pagination remote={remote} /><p>Statistik dan filter ulasan berlaku pada halaman ini.</p>
+          <p>Ulasan baru langsung terlihat; Admin dapat menyembunyikan ulasan yang melanggar.</p>
         </div>
       </div>
 
@@ -189,7 +149,7 @@ function AdminReviews() {
                   <td>{review.warung}</td>
                   <td>
                     <span className="admin-review-rating">
-                      ★ {review.rating}.0
+                      ★ {review.rating}
                     </span>
                   </td>
                   <td>{review.date}</td>
@@ -235,7 +195,7 @@ function AdminReviews() {
                         <button
                           type="button"
                           onClick={() => {
-                            alert('Fitur laporan akan dihubungkan ke backend nanti.')
+                            document.getElementById('admin-reports')?.scrollIntoView({ behavior: 'smooth' })
                             setOpenMenuId(null)
                           }}
                         >
@@ -258,6 +218,7 @@ function AdminReviews() {
           </table>
         </div>
       </div>
+      <AdminReports />
     </section>
   )
 }

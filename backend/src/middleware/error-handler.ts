@@ -24,6 +24,17 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return
   }
 
+  if (error && typeof error === 'object' && 'type' in error) {
+    if (error.type === 'entity.parse.failed') {
+      res.status(400).json({ success: false, code: 'INVALID_JSON', message: 'Format JSON tidak valid.' })
+      return
+    }
+    if (error.type === 'entity.too.large') {
+      res.status(413).json({ success: false, code: 'PAYLOAD_TOO_LARGE', message: 'Ukuran data permintaan terlalu besar.' })
+      return
+    }
+  }
+
   logger.error(error)
   res.status(500).json({
     success: false,

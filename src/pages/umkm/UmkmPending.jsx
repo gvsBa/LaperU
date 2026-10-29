@@ -1,4 +1,9 @@
-import { useState } from 'react'
+import { useRemote } from '../../services/useRemote'
+import { privateApi } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import { Link } from 'react-router-dom'
+import { statusLabels } from '../../services/viewModels'
+const loadApplication = signal => privateApi('/umkm/application', { signal })
 import Logo from '../../components/common/Logo'
 
 function PendingIcon() {
@@ -11,7 +16,7 @@ function PendingIcon() {
 }
 
 function UmkmPending() {
-  const [checked, setChecked] = useState(false)
+  const remote = useRemote(loadApplication)
 
   return (
     <main className="umkm-pending">
@@ -25,30 +30,26 @@ function UmkmPending() {
             <PendingIcon />
           </div>
 
-          <h1>pengajuan sedang di verifikasi</h1>
+          <h1>Status pengajuan</h1><RemoteStatus remote={remote} />
 
           <p className="umkm-pending__description">
-            Data warung dan foto sudah diterima. Admin akan meninjau pengajuanmu.
+            {remote.data?.adminNote || 'Status ditampilkan sesuai hasil pemeriksaan server.'}
           </p>
 
           <p className="umkm-pending__status">
             Status:
-            <span>Menunggu verifikasi</span>
+            <span>{statusLabels[remote.data?.status] || "Memuat"}</span>
           </p>
 
           <button
             type="button"
             className="umkm-pending__reload"
-            onClick={() => setChecked(true)}
+            onClick={remote.reload}
           >
             Memuat ulang status
           </button>
 
-          {checked && (
-            <p className="umkm-pending__notice">
-              Belum ada perubahan status. Nanti backend yang cek status sebenarnya.
-            </p>
-          )}
+          <Link to="/umkm/pengajuan">Lihat pengajuan</Link> · <Link to="/umkm">Dashboard UMKM</Link>
         </div>
       </section>
     </main>

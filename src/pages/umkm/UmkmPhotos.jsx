@@ -1,43 +1,24 @@
-import { useState } from 'react'
+import { useRemote } from '../../services/useRemote'
+import { privateApi, saveData, uploadImage } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024
-const emptyPhotos = [null, null, null, null]
+
+const loadPhotos = async signal => (await privateApi('/umkm/warung', { signal })).photos
 
 function UmkmPhotos() {
-  const [photos, setPhotos] = useState(emptyPhotos)
-  const [notice, setNotice] = useState('')
-
-  function handlePhotoChange(index, event) {
-    const [file] = event.target.files
-
+  const remote = useRemote(loadPhotos, [])
+  const photos = [...remote.data, null]
+  async function handlePhotoChange(_index, event) {
+    const file = event.target.files[0]
     if (!file) return
-
-    if (file.size > MAX_FILE_SIZE) {
-      setNotice('Ukuran foto maksimal 2 MB.')
-      return
-    }
-
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      setPhotos((currentPhotos) =>
-        currentPhotos.map((photo, photoIndex) =>
-          photoIndex === index ? reader.result : photo
-        )
-      )
-      setNotice('')
-    }
-
-    reader.readAsDataURL(file)
+    await remote.run(async () => {
+      const image = await uploadImage(file)
+      await saveData('/umkm/photos', 'POST', { url: image.url, type: 'VENUE', altText: 'Foto warung' })
+    }, 'Foto berhasil diunggah dan disimpan.')
   }
-
-  function handleSave() {
-    setNotice('Foto sudah tersimpan di tampilan lokal. Upload server nanti dihubungkan backend.')
-  }
-
   return (
     <section className="umkm-photos">
-      <h1>Foto Warung &amp; Menu</h1>
+      <h1>Foto Warung &amp; Menu</h1><RemoteStatus remote={remote} />
 
       <div className="umkm-photos__card">
         <div className="umkm-photos__grid">
@@ -48,25 +29,21 @@ function UmkmPhotos() {
               title={`Unggah foto ${index + 1}`}
             >
               <input
-                type="file"
+                type="file" disabled={!!photo || remote.busy}
                 accept="image/jpeg,image/png"
                 onChange={(event) => handlePhotoChange(index, event)}
               />
 
-              {photo && <img src={photo} alt={`Foto warung atau menu ${index + 1}`} />}
+              {photo && <img src={photo.url} alt={`Foto warung atau menu ${index + 1}`} />}
             </label>
           ))}
         </div>
 
         <p className="umkm-photos__help">Format JPG/JPEG/PNG, maks 2 MB</p>
 
-        {notice && <p className="umkm-photos__notice">{notice}</p>}
 
-        <div className="umkm-photos__actions">
-          <button type="button" onClick={handleSave}>
-            Simpan Foto
-          </button>
-        </div>
+
+        <p>Foto disimpan setelah dipilih. Gunakan kotak kosong untuk menambah foto; penghapusan foto belum tersedia.</p>
       </div>
     </section>
   )

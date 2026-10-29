@@ -1,57 +1,16 @@
 import { useMemo, useState } from 'react'
 
-const initialUsers = [
-  {
-    id: 1,
-    initials: 'AP',
-    name: 'Aldi Pratama',
-    email: 'aldi.pratama@student.telkomuniversity.ac.id',
-    role: 'Customer',
-    joinedAt: '12 Oktober 2026',
-    status: 'Aktif',
-  },
-  {
-    id: 2,
-    initials: 'RA',
-    name: 'Rani Aulia',
-    email: 'rani.aulia@student.telkomuniversity.ac.id',
-    role: 'Customer',
-    joinedAt: '08 Oktober 2026',
-    status: 'Aktif',
-  },
-  {
-    id: 3,
-    initials: 'MR',
-    name: 'Muhayat Rizky',
-    email: 'muhayat@gmail.com',
-    role: 'UMKM',
-    joinedAt: '21 Oktober 2026',
-    status: 'Aktif',
-  },
-  {
-    id: 4,
-    initials: 'DK',
-    name: 'Dedi Kurniawan',
-    email: 'dedi.kurniawan@gmail.com',
-    role: 'UMKM',
-    joinedAt: '16 Oktober 2026',
-    status: 'Nonaktif',
-  },
-  {
-    id: 5,
-    initials: 'AD',
-    name: 'Admin LaperU',
-    email: 'admin@laperu.local',
-    role: 'Admin',
-    joinedAt: '01 Oktober 2026',
-    status: 'Aktif',
-  },
-]
 
-const filters = ['Semua', 'Customer', 'UMKM', 'Admin', 'Nonaktif']
+import { usePagedApi } from '../../services/useRemote'
+import { saveData } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+import { userView } from '../../services/viewModels'
+const filters = ['Semua', 'Customer', 'UMKM', 'Nonaktif']
 
 function AdminUsers() {
-  const [users, setUsers] = useState(initialUsers)
+  const remote = usePagedApi('/admin/users', userView)
+  const users = remote.items
   const [keyword, setKeyword] = useState('')
   const [activeFilter, setActiveFilter] = useState('Semua')
   const [openMenuId, setOpenMenuId] = useState(null)
@@ -82,19 +41,16 @@ function AdminUsers() {
     inactive: users.filter((user) => user.status === 'Nonaktif').length,
   }
 
-  function updateStatus(id, status) {
-    setUsers((current) =>
-      current.map((user) => (user.id === id ? { ...user, status } : user)),
-    )
-    setOpenMenuId(null)
+  async function updateStatus(id, status) {
+    if (await remote.run(() => saveData(`/admin/users/${id}/status`, 'PATCH', { status: status === 'Aktif' ? 'ACTIVE' : 'SUSPENDED' }))) setOpenMenuId(null)
   }
 
   return (
     <section className="admin-users">
       <div className="admin-page-heading">
         <div>
-          <h1>Pengguna</h1>
-          <p>Kelola akun Customer, UMKM, dan Admin LaperU.</p>
+          <h1>Pengguna</h1><RemoteStatus remote={remote} /><Pagination remote={remote} /><p>Statistik dan filter berlaku pada halaman ini. Akun Admin tidak dikelola melalui menu ini.</p>
+          <p>Kelola akun Customer dan UMKM LaperU.</p>
         </div>
       </div>
 
@@ -220,22 +176,14 @@ function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => {
-                            alert(`Detail akun ${user.name} akan dihubungkan ke backend nanti.`)
+                            alert(`${user.name}\n${user.email}\n${user.role} · ${user.status}`)
                             setOpenMenuId(null)
                           }}
                         >
                           Lihat detail
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            alert(`Link reset password untuk ${user.name} akan dikirim oleh backend nanti.`)
-                            setOpenMenuId(null)
-                          }}
-                        >
-                          Reset password
-                        </button>
+                        <button type="button" disabled title="Belum tersedia: layanan pemulihan password belum diimplementasikan.">Reset password (belum tersedia)</button>
 
                         {user.status === 'Aktif' ? (
                           <button

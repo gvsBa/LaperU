@@ -7,7 +7,10 @@ backend/test-data/generated
 .env.*
 !.env.example
 *.local
+.demo-accounts.local.json
 *.log
 .DS_Store
+test-results/
+playwright-report/
 .vscode/*
 !.vscode/extensions.json

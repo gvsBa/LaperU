@@ -181,7 +181,7 @@ adminRouter.post('/applications/:id/decision', validate(idParamSchema, 'params')
     await connection.beginTransaction()
     const [rows] = await connection.execute<GenericRow[]>(
       `SELECT us.id, us.status, up.id AS profileId, up.user_id AS userId, up.business_name AS businessName,
-        up.phone, up.address FROM umkm_submissions us JOIN umkm_profiles up ON up.id = us.umkm_profile_id
+        up.phone, up.address, up.storefront_photo_url AS storefrontPhotoUrl FROM umkm_submissions us JOIN umkm_profiles up ON up.id = us.umkm_profile_id
        WHERE us.id = ? FOR UPDATE`,
       [applicationId],
     )
@@ -202,6 +202,15 @@ adminRouter.post('/applications/:id/decision', validate(idParamSchema, 'params')
          ON DUPLICATE KEY UPDATE approval_status = 'APPROVED', is_active = 1, updated_at = NOW()`,
         [randomUUID(), String(application.profileId), String(application.businessName), slugify(String(application.businessName), applicationId), String(application.address), String(application.phone)],
       )
+      if (application.storefrontPhotoUrl) {
+        // Publish the verified storefront within the same approval transaction.
+        await connection.execute(
+          `INSERT INTO photos (id, warung_id, url, type, alt_text)
+           SELECT ?, w.id, ?, 'STOREFRONT', ? FROM warungs w
+           WHERE w.umkm_profile_id = ? AND NOT EXISTS (SELECT 1 FROM photos p WHERE p.warung_id = w.id AND p.type = 'STOREFRONT')`,
+          [randomUUID(), String(application.storefrontPhotoUrl), String(application.businessName), String(application.profileId)],
+        )
+      }
     }
 
     await connection.execute(
@@ -246,6 +255,24 @@ adminRouter.patch('/reports/:id', validate(idParamSchema, 'params'), validate(re
   )
   if (!result.affectedRows) throw new ApiError(404, 'REPORT_NOT_FOUND', 'Laporan tidak ditemukan.')
   sendOk(res, null, 200, 'Laporan berhasil ditinjau.')
+}))
+
+adminRouter.get('/reviews', validate(adminWarungListSchema, 'query'), asyncHandler(async (req, res) => {
+  const query = req.query as unknown as { limit: number; page: number; q?: string }
+  const where = query.q ? 'WHERE w.name LIKE ? OR u.full_name LIKE ? OR r.comment LIKE ?' : ''
+  const params: string[] = query.q ? Array<string>(3).fill(`%${query.q}%`) : []
+  const [rows] = await pool.query<GenericRow[]>(
+    `SELECT r.id, r.comment, r.status, r.created_at AS createdAt, w.name AS warungName, w.slug AS warungSlug,
+      u.full_name AS customerName,
+      (r.taste_rating + r.price_rating + r.portion_rating + r.cleanliness_rating + r.comfort_rating + r.speed_rating) / 6 AS averageRating
+     FROM reviews r JOIN warungs w ON w.id = r.warung_id JOIN users u ON u.id = r.user_id
+     ${where} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`, [...params, query.limit, (query.page - 1) * query.limit],
+  )
+  const [count] = await pool.query<CountRow[]>(
+    `SELECT COUNT(*) AS total FROM reviews r JOIN warungs w ON w.id = r.warung_id JOIN users u ON u.id = r.user_id ${where}`, params,
+  )
+  const total = count[0]?.total ?? 0
+  sendOk(res, { items: rows, pagination: { limit: query.limit, page: query.page, total, totalPages: Math.ceil(total / query.limit) } })
 }))
 
 adminRouter.patch('/reviews/:id/status', validate(idParamSchema, 'params'), validate(reviewModerationSchema), asyncHandler(async (req, res) => {

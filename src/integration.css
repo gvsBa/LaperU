@@ -1,0 +1,13 @@
+/* Integration states use the existing neutral FE palette. */
+.api-status { margin-block: 12px; overflow-wrap: anywhere; }
+.api-status:empty { display: none; }
+.api-status p { padding: 10px 12px; border: 1px solid #d7d7d7; border-radius: 8px; background: #fafafa; }
+.api-status button, .api-pagination button, .api-report button { padding: 8px 12px; border: 1px solid #999; border-radius: 6px; background: white; cursor: pointer; }
+.api-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 16px; }
+.api-report { padding: 20px 0; border-top: 1px solid #ddd; overflow-wrap: anywhere; }
+.api-report label { display: grid; gap: 6px; margin-block: 12px; }
+.api-report textarea, .api-report select { max-width: 100%; padding: 10px; }
+.umkm-submission fieldset, .account-profile fieldset, .account-security fieldset { border: 0; padding: 0; min-width: 0; margin: 0; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+:focus-visible { outline: 2px solid #222; outline-offset: 3px; }
+.umkm-sidebar__logout { display: block; }

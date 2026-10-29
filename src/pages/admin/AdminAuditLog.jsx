@@ -1,51 +1,16 @@
 import { useMemo, useState } from 'react'
 
-const auditLogs = [
-  {
-    id: 1,
-    time: '22 Okt 2026, 14:32',
-    admin: 'Admin LaperU',
-    category: 'Pengajuan',
-    action: 'Menyetujui pengajuan UMKM',
-    detail: 'Sambal Mangga milik Muhayat',
-  },
-  {
-    id: 2,
-    time: '22 Okt 2026, 13:48',
-    admin: 'Admin LaperU',
-    category: 'Warung',
-    action: 'Menonaktifkan warung',
-    detail: 'Bakso Mas Joko',
-  },
-  {
-    id: 3,
-    time: '22 Okt 2026, 11:12',
-    admin: 'Admin LaperU',
-    category: 'Ulasan',
-    action: 'Menampilkan ulasan',
-    detail: 'Ulasan dari Aldi Pratama pada Warung Nasi Bu Euis',
-  },
-  {
-    id: 4,
-    time: '21 Okt 2026, 18:25',
-    admin: 'Admin LaperU',
-    category: 'Pengguna',
-    action: 'Mengaktifkan akun',
-    detail: 'Akun UMKM milik Muhayat Rizky',
-  },
-  {
-    id: 5,
-    time: '21 Okt 2026, 16:04',
-    admin: 'Admin LaperU',
-    category: 'Pengajuan',
-    action: 'Meminta perbaikan pengajuan',
-    detail: 'Warung Kopi Sudut milik Aldi Pratama',
-  },
-]
+import { useRemote } from '../../services/useRemote'
+import { privateApi } from '../../services/managementService'
+import { dateLabel, csvCell } from '../../services/viewModels'
+import RemoteStatus from '../../components/common/RemoteStatus'
+const loadLogs = async signal => (await privateApi('/admin/audit-logs', { signal })).map(item => ({ ...item, time: dateLabel(item.createdAt), admin: item.adminName, category: { UMKM_SUBMISSION: 'Pengajuan', WARUNG: 'Warung', USER: 'Pengguna', REVIEW: 'Ulasan' }[item.entityType] || item.entityType, detail: item.entityId }))
 
 const filters = ['Semua', 'Pengajuan', 'Warung', 'Pengguna', 'Ulasan']
 
 function AdminAuditLog() {
+  const remote = useRemote(loadLogs, [])
+  const auditLogs = remote.data
   const [activeFilter, setActiveFilter] = useState('Semua')
   const [keyword, setKeyword] = useState('')
 
@@ -64,7 +29,7 @@ function AdminAuditLog() {
 
       return filterMatches && searchMatches
     })
-  }, [activeFilter, keyword])
+  }, [activeFilter, keyword, auditLogs])
 
   function exportCsv() {
     const header = ['Waktu', 'Admin', 'Kategori', 'Aksi', 'Detail']
@@ -79,7 +44,7 @@ function AdminAuditLog() {
 
     const csv = [header, ...rows]
       .map((row) =>
-        row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','),
+        row.map(csvCell).join(','),
       )
       .join('\n')
 
@@ -98,7 +63,7 @@ function AdminAuditLog() {
     <section className="admin-audit-log">
       <div className="admin-page-heading admin-audit-log__heading">
         <div>
-          <h1>Audit Log</h1>
+          <h1>Audit Log</h1><RemoteStatus remote={remote} /><p>Maksimal 200 aktivitas terbaru. Export mengikuti filter yang terlihat.</p>
           <p>Riwayat aktivitas penting yang dilakukan oleh Admin.</p>
         </div>
 
@@ -116,7 +81,7 @@ function AdminAuditLog() {
 
         <article>
           <span>Hari Ini</span>
-          <strong>3</strong>
+          <strong>{auditLogs.filter(log => new Date(log.createdAt).toDateString() === new Date().toDateString()).length}</strong>
           <small>Aksi Admin hari ini</small>
         </article>
 

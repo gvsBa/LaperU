@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import PublicLayout from "../layouts/PublicLayout";
 import Home from "../pages/public/Home";
 import Explore from "../pages/public/Explore";
@@ -25,6 +25,7 @@ import AdminReviews from '../pages/admin/AdminReviews'
 import AdminMasterData from '../pages/admin/AdminMasterData'
 import AdminAuditLog from '../pages/admin/AdminAuditLog'
 
+import RoleGate from "../components/management/RoleGate";
 function AppRoutes() {
   return (
     <Routes>
@@ -33,12 +34,14 @@ function AppRoutes() {
       </Route>
 
       <Route path="/explore" element={<Explore />} />
-      <Route path="/restaurants/:id" element={<RestaurantDetail />} />
+      <Route path="/restaurants/:slug" element={<RestaurantDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/account" element={<Account />} />
-      <Route path="/umkm/menunggu-verifikasi" element={<UmkmPending />} />
-      <Route path="/umkm" element={<UmkmLayout />}>
+      <Route path="/favorites" element={<Navigate to="/account?tab=activity&filter=favorite" replace />} />
+      <Route path="/reviews" element={<Navigate to="/account?tab=activity&filter=review" replace />} />
+      <Route path="/account" element={<RoleGate><Account /></RoleGate>} />
+      <Route path="/umkm/menunggu-verifikasi" element={<RoleGate role="UMKM"><UmkmPending /></RoleGate>} />
+      <Route path="/umkm" element={<RoleGate role="UMKM"><UmkmLayout /></RoleGate>}>
         <Route index element={<UmkmDashboard />} />
         <Route path="pengajuan" element={<UmkmSubmission />} />
         <Route path="profil-warung" element={<UmkmProfile />} />
@@ -48,7 +51,7 @@ function AppRoutes() {
         <Route path="foto" element={<UmkmPhotos />} />
         <Route path="akun" element={<UmkmAccount />} />
       </Route>
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route path="/admin" element={<RoleGate role="ADMIN"><AdminLayout /></RoleGate>}>
         <Route index element={<AdminDashboard />} />
         <Route path="pengajuan" element={<AdminSubmissions />} />
         <Route path="warung" element={<AdminWarungs />} />
@@ -57,6 +60,7 @@ function AppRoutes() {
         <Route path="master-data" element={<AdminMasterData />} />
         <Route path="audit-log" element={<AdminAuditLog />} />
       </Route>
+      <Route path="*" element={<main><h1>Halaman tidak ditemukan</h1><a href="/explore">Kembali jelajahi</a></main>} />
     </Routes>
   );
 }

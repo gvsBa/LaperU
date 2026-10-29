@@ -38,7 +38,7 @@ function ExploreHeader({
         </button>
       </form>
 
-      <button className="location-picker" type="button">
+      <button className="location-picker" type="button" disabled title="Area informasi: Telkom University. Gunakan urutan Terdekat untuk lokasi perangkat.">
         <span>
           <Icon name="mapPin" size={17} filled />
         </span>
@@ -49,7 +49,7 @@ function ExploreHeader({
       <div className="explore-header__user">
         {isAuthenticated ? (
           <>
-            <button className="notification-button" aria-label="Notifikasi">
+            <button className="notification-button" disabled aria-label="Notifikasi belum tersedia">
               <Icon name="bell" size={20} />
             </button>
             <Link

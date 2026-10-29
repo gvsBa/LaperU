@@ -8,30 +8,12 @@ const statusFilters = [
   'Ditolak',
 ]
 
-const submissions = [
-  {
-    id: 1,
-    business: 'Soto pak Odang',
-    owner: 'Odang',
-    submittedAt: '20 Agustus 2020',
-    status: 'Ditolak',
-  },
-  {
-    id: 2,
-    business: 'Warteg Podom',
-    owner: '-',
-    submittedAt: '19 April 2019',
-    status: 'Disetujui',
-  },
-  {
-    id: 3,
-    business: 'Gacoan',
-    owner: 'Anton Kurniawan',
-    submittedAt: '08 Oktober 2016',
-    status: 'Menunggu',
-  },
-]
 
+import { usePagedApi } from '../../services/useRemote'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+import { applicationView } from '../../services/viewModels'
+import { useNavigate } from 'react-router-dom'
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -42,6 +24,9 @@ function SearchIcon() {
 }
 
 function AdminDashboard() {
+  const remote = usePagedApi('/admin/applications', applicationView)
+  const submissions = remote.items
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('Semua')
 
@@ -60,11 +45,11 @@ function AdminDashboard() {
 
       return matchesFilter && matchesQuery
     })
-  }, [activeFilter, query])
+  }, [activeFilter, query, submissions])
 
   return (
     <section className="admin-dashboard">
-      <h1>Ringkasan</h1>
+      <h1>Ringkasan</h1><RemoteStatus remote={remote} /><Pagination remote={remote} /><p>Ringkasan pengajuan pada halaman ini.</p>
 
       <label className="admin-search">
         <input
@@ -120,7 +105,7 @@ function AdminDashboard() {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className="admin-button">
+                    <button type="button" className="admin-button" onClick={() => navigate('/admin/pengajuan')}>
                       Periksa
                     </button>
                   </td>

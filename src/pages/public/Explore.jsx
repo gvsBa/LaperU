@@ -1,21 +1,16 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import ExploreHeader from '../../components/explore/ExploreHeader'
 import RestaurantCard from '../../components/restaurant/RestaurantCard'
-import restaurants from '../../mocks/restaurants'
+import { useAuth } from '../../auth/useAuth'
+import { getFilterOptions, listWarungs } from '../../services/restaurantService'
+import { useRemote } from '../../services/useRemote'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import Pagination from '../../components/common/Pagination'
+const loadMeta = signal => getFilterOptions({ signal })
 import EmptySearchIllustration from '../../components/explore/EmptySearchIllustration'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import QuickSidebar from '../../components/layout/QuickSidebar'
 import SiteFooter from '../../components/layout/SiteFooter'
-const categories = [
-  'Semua',
-  'Masakan Sunda',
-  'Mie & Bakmi',
-  'Bakso & Soto',
-  'Ayam & Bebek',
-  'Kopi & Minuman',
-  'Dessert',
-  'Fast Food',
-]
 
 const sortOptions = [
   { value: 'recommended', label: 'Rekomendasi' },
@@ -41,70 +36,31 @@ function Explore() {
 
   const selectedSort =
     sortOptions.find((option) => option.value === sortBy) || sortOptions[0]
-  const isAuthenticated = searchParams.get('mode') === 'account'
+  const { user } = useAuth()
+  const isAuthenticated = !!user
+  const meta = useRemote(loadMeta)
+  const categories = ['Semua', ...(meta.data?.categories || []).map(item => item.name)]
+  const [page, setPage] = useState(1)
+  const [coordinates, setCoordinates] = useState(null)
+  const [locationError, setLocationError] = useState('')
+  function chooseSort(value) {
+    if (value === 'nearest' && !coordinates) {
+      if (!navigator.geolocation) { setLocationError('Browser tidak mendukung lokasi.'); return }
+      navigator.geolocation.getCurrentPosition(({ coords }) => { setCoordinates({ latitude: coords.latitude, longitude: coords.longitude }); setSortBy(value); setPage(1); setLocationError('') }, () => setLocationError('Izin lokasi ditolak atau lokasi belum tersedia. Urutan sebelumnya tetap dipakai.'), { timeout: 10000 })
+    } else { setSortBy(value); setPage(1) }
+  }
 
-  const filteredRestaurants = useMemo(() => {
-    const keyword = (searchParams.get('q') || '').trim().toLowerCase()
-
-    const results = restaurants.filter((restaurant) => {
-      const searchableText = [
-        restaurant.name,
-        restaurant.category,
-        ...restaurant.searchTerms,
-      ].join(' ').toLowerCase()
-
-      const categoryMatches =
-        activeCategory === 'Semua' || restaurant.category === activeCategory
-
-      const queryMatches = !keyword || searchableText.includes(keyword)
-
-      const priceMatches =
-        priceBand === 'all' ||
-        (priceBand === 'under20' && restaurant.minPrice < 20000) ||
-        (priceBand === '20to30' &&
-          restaurant.minPrice >= 20000 &&
-          restaurant.minPrice <= 30000) ||
-        (priceBand === 'above30' && restaurant.minPrice > 30000)
-
-      const ratingMatches =
-        minRating === 'all' || restaurant.rating >= Number(minRating)
-
-      const openMatches = !openNow || restaurant.isOpen
-
-      const facilityMatches =
-        facility === 'all' || restaurant.facilities.includes(facility)
-
-      const paymentMatches =
-        payment === 'all' || restaurant.paymentMethods.includes(payment)
-
-      return (
-        categoryMatches &&
-        queryMatches &&
-        priceMatches &&
-        ratingMatches &&
-        openMatches &&
-        facilityMatches &&
-        paymentMatches
-      )
-    })
-
-    return [...results].sort((first, second) => {
-      if (sortBy === 'nearest') return first.distanceKm - second.distanceKm
-      if (sortBy === 'cheapest') return first.minPrice - second.minPrice
-      if (sortBy === 'rating') return second.rating - first.rating
-
-      return second.rating - first.rating || first.distanceKm - second.distanceKm
-    })
-  }, [
-    activeCategory,
-    facility,
-    minRating,
-    openNow,
-    payment,
-    priceBand,
-    searchParams,
-    sortBy,
-  ])
+  const categorySlug = meta.data?.categories.find(item => item.name === activeCategory)?.slug
+  const queryText = searchParams.get('q') || ''
+  const loader = useCallback(signal => listWarungs({ q: queryText || undefined, category: categorySlug,
+    minPrice: priceBand === '20to30' ? 20000 : priceBand === 'above30' ? 30001 : undefined,
+    maxPrice: priceBand === 'under20' ? 19999 : priceBand === '20to30' ? 30000 : undefined,
+    minRating: minRating === 'all' ? undefined : minRating, openNow: openNow || undefined,
+    facility: facility === 'all' ? undefined : facility, payment: payment === 'all' ? undefined : payment,
+    sort: sortBy, ...(sortBy === 'nearest' ? coordinates : {}), page, limit: 12,
+  }, { signal }), [queryText, categorySlug, priceBand, minRating, openNow, facility, payment, sortBy, coordinates, page])
+  const remote = useRemote(loader)
+  const filteredRestaurants = remote.data?.items || []
 
   const activeFilterCount = [
     priceBand !== 'all',
@@ -122,10 +78,12 @@ function Explore() {
     if (query.trim()) nextParams.set('q', query.trim())
     else nextParams.delete('q')
 
+    setPage(1)
     setSearchParams(nextParams)
   }
 
   function resetExplore() {
+    setPage(1)
     setQuery('')
     setActiveCategory('Semua')
     setPriceBand('all')
@@ -189,23 +147,24 @@ function Explore() {
       )}
 
       <main className="explore-main">
+        <RemoteStatus remote={remote} /><RemoteStatus remote={meta} />{locationError && <p role="alert">{locationError}</p>}
         <div className="category-tabs" aria-label="Kategori warung">
           {categories.map((category) => (
             <button
               key={category}
               type="button"
               className={activeCategory === category ? 'active' : ''}
-              onClick={() => setActiveCategory(category)}
+              onClick={() => { setPage(1); setActiveCategory(category) }}
             >
               {category}
             </button>
           ))}
         </div>
 
-        {hasResults && (
+        {(
   <div className="explore-result-heading">
     <div>
-      <span>{filteredRestaurants.length} warung ditemukan</span>
+      <span>{remote.data?.pagination.total ?? 0} warung ditemukan</span>
       <h1>
         {searchParams.get('q')
           ? `Hasil untuk “${searchParams.get('q')}”`
@@ -242,7 +201,7 @@ function Explore() {
           type="button"
           className={sortBy === option.value ? 'sort-menu__option active' : 'sort-menu__option'}
           onClick={() => {
-            setSortBy(option.value)
+            chooseSort(option.value)
             setSortOpen(false)
           }}
         >
@@ -256,11 +215,11 @@ function Explore() {
   </div>
 )}
 
-{hasResults && filterOpen && (
+{filterOpen && (
   <section className="explore-filter-panel" aria-label="Filter warung">
     <label>
       Harga
-      <select value={priceBand} onChange={(event) => setPriceBand(event.target.value)}>
+      <select value={priceBand} onChange={(event) => { setPage(1); setPriceBand(event.target.value) }}>
         <option value="all">Semua harga</option>
         <option value="under20">Di bawah Rp20.000</option>
         <option value="20to30">Rp20.000 - Rp30.000</option>
@@ -270,7 +229,7 @@ function Explore() {
 
     <label>
       Rating
-      <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
+      <select value={minRating} onChange={(event) => { setPage(1); setMinRating(event.target.value) }}>
         <option value="all">Semua rating</option>
         <option value="4">Rating 4.0+</option>
         <option value="4.5">Rating 4.5+</option>
@@ -279,21 +238,17 @@ function Explore() {
 
     <label>
       Fasilitas
-      <select value={facility} onChange={(event) => setFacility(event.target.value)}>
+      <select value={facility} onChange={(event) => { setPage(1); setFacility(event.target.value) }}>
         <option value="all">Semua fasilitas</option>
-        <option value="wifi">WiFi</option>
-        <option value="parking">Parkir</option>
-        <option value="dine-in">Makan di tempat</option>
+        {meta.data?.facilities.map(item => <option key={item.id} value={item.slug}>{item.name}</option>)}
       </select>
     </label>
 
     <label>
       Pembayaran
-      <select value={payment} onChange={(event) => setPayment(event.target.value)}>
+      <select value={payment} onChange={(event) => { setPage(1); setPayment(event.target.value) }}>
         <option value="all">Semua pembayaran</option>
-        <option value="cash">Tunai</option>
-        <option value="qris">QRIS</option>
-        <option value="transfer">Transfer</option>
+        {meta.data?.paymentMethods.map(item => <option key={item.id} value={item.slug}>{item.name}</option>)}
       </select>
     </label>
 
@@ -301,7 +256,7 @@ function Explore() {
       <input
         type="checkbox"
         checked={openNow}
-        onChange={(event) => setOpenNow(event.target.checked)}
+        onChange={(event) => { setPage(1); setOpenNow(event.target.checked) }}
       />
       Buka sekarang
     </label>
@@ -318,7 +273,7 @@ function Explore() {
       <RestaurantCard key={restaurant.id} restaurant={restaurant} />
     ))}
   </div>
-) : (
+) : !remote.loading && !remote.error && (
   <section className="explore-empty" role="status">
     <EmptySearchIllustration />
 
@@ -343,6 +298,7 @@ function Explore() {
     memberi ulasan.
   </p>
 )}
+        <Pagination remote={{ ...remote, page, setPage, pagination: remote.data?.pagination }} />
       </main>
       <SiteFooter />
     </div>

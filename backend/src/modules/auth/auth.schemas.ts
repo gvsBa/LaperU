@@ -2,9 +2,11 @@ import { z } from 'zod'
 import { safeText } from '../../utils/safe-text.js'
 
 const password = z.string().min(8).max(72).regex(/[A-Za-z]/, 'Kata sandi harus memiliki huruf.').regex(/\d/, 'Kata sandi harus memiliki angka.')
+  .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, 'Kata sandi maksimal 72 byte UTF-8.')
+const email = z.string().trim().toLowerCase().pipe(z.email().max(190))
 
 export const customerRegistrationSchema = z.object({
-  email: z.email().max(190).transform((value) => value.trim().toLowerCase()),
+  email,
   fullName: safeText({ min: 2, max: 120 }),
   password,
 })
@@ -17,7 +19,7 @@ export const umkmRegistrationSchema = customerRegistrationSchema.extend({
 })
 
 export const loginSchema = z.object({
-  email: z.email().transform((value) => value.trim().toLowerCase()),
+  email,
   password: z.string().min(1).max(72),
 })
 

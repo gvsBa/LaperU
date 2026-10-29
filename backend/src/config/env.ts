@@ -8,6 +8,7 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8).default('GantiPassword123'),
   DATABASE_URL: z.string().default('mysql://root:password@localhost:3306/laperu'),
   FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),
+  HOST: z.string().default('127.0.0.1'),
   IMAGE_MAX_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
   JWT_ACCESS_SECRET: z.string().min(32).default('dev-access-secret-change-before-production-123'),
   JWT_REFRESH_SECRET: z.string().min(32).default('dev-refresh-secret-change-before-production-456'),

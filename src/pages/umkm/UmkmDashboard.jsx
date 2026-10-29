@@ -1,42 +1,12 @@
-const metrics = [
-  {
-    label: 'Tayangan Profile',
-    value: '1.020',
-    change: '+4 dari minggu lalu',
-    tone: 'green',
-  },
-  {
-    label: 'Difavoritkan',
-    value: '24',
-    change: '-7 dari minggu lalu',
-    tone: 'yellow',
-  },
-  {
-    label: 'Rata-Rata Rating',
-    value: '7',
-    change: '-2 dari minggu lalu',
-    tone: 'blue',
-  },
-]
-
-const menus = [
-  { id: 1, name: 'Ayam Kremes', price: '18.000', status: 'Tersedia' },
-  { id: 2, name: 'Ayam Kremes', price: '18.000', status: 'Tersedia' },
-  { id: 3, name: 'Ayam Kremes', price: '18.000', status: 'Tersedia' },
-]
-
-const reviews = [
-  {
-    name: 'Ayyam Goreng',
-    rating: '★★★★★',
-    text: 'Tempatnya nyaman dan bagus, makanannya enak-enak',
-  },
-  {
-    name: 'Lele',
-    rating: '★★★★★',
-    text: 'Tempatnya nyaman dan bagus, makanannya enak-enak',
-  },
-]
+import { useRemote } from '../../services/useRemote'
+import { privateApi } from '../../services/managementService'
+import RemoteStatus from '../../components/common/RemoteStatus'
+import { Link } from 'react-router-dom'
+import { rupiah } from '../../services/restaurantService'
+const loadDashboard = async signal => {
+  const [statistics, menus, reviews] = await Promise.all(['/statistics','/menus','/reviews'].map(path => privateApi('/umkm' + path, { signal })))
+  return { statistics, menus, reviews }
+}
 
 function StoreIcon() {
   return (
@@ -50,9 +20,18 @@ function StoreIcon() {
 }
 
 function UmkmDashboard() {
+  const remote = useRemote(loadDashboard)
+  const stats = remote.data?.statistics
+  const metrics = [
+    { label: 'Tayangan profil', value: stats?.profileViews ?? '—', change: 'Permintaan detail, bukan pengunjung unik', tone: 'green' },
+    { label: 'Difavoritkan', value: stats?.favoriteCount ?? '—', change: 'Total favorit', tone: 'yellow' },
+    { label: 'Rata-rata rating', value: stats ? Number(stats.averageRating).toFixed(1) : '—', change: 'Skala 1–5', tone: 'blue' },
+  ]
+  const menus = (remote.data?.menus || []).slice(0, 5)
+  const reviews = (remote.data?.reviews || []).slice(0, 5).map(item => ({ ...item, name: item.customerName, text: item.comment, rating: Number(item.averageRating).toFixed(1) + ' / 5' }))
   return (
     <section className="umkm-dashboard">
-      <h1>Dashboard UMKM</h1>
+      <h1>Dashboard UMKM</h1><RemoteStatus remote={remote} />
 
       <div className="umkm-metric-grid">
         {metrics.map((metric) => (
@@ -72,17 +51,13 @@ function UmkmDashboard() {
 
       <div className="umkm-dashboard__top-grid">
         <section className="umkm-panel umkm-chart-panel" aria-label="Grafik performa warung">
-          <div className="umkm-bar-chart">
-            {[44, 88, 132, 88, 44, 132].map((height, index) => (
-              <span key={index} style={{ height: `${height}px` }} />
-            ))}
-          </div>
+          <p>Tayangan 30 hari: {stats?.profileViewsLast30Days ?? "—"}. Grafik per hari belum tersedia.</p>
         </section>
 
         <section className="umkm-panel umkm-menu-overview">
           <div className="umkm-panel__heading">
             <h2>Menu</h2>
-            <button type="button">Tambah Menu</button>
+            <Link to="/umkm/menu">Tambah Menu</Link>
           </div>
 
           <div className="umkm-table-wrap">
@@ -99,12 +74,10 @@ function UmkmDashboard() {
                 {menus.map((menu) => (
                   <tr key={menu.id}>
                     <td>{menu.name}</td>
-                    <td>{menu.price}</td>
-                    <td><span className="umkm-status">Tersedia</span></td>
+                    <td>{rupiah(menu.price)}</td>
+                    <td><span className="umkm-status">{!Number(menu.isActive) ? "Nonaktif" : Number(menu.isAvailable) ? "Tersedia" : "Habis"}</span></td>
                     <td>
-                      <button type="button" className="umkm-table__action">
-                        Batal
-                      </button>
+                      <Link to="/umkm/menu" className="umkm-table__action">Kelola</Link>
                     </td>
                   </tr>
                 ))}
@@ -118,7 +91,7 @@ function UmkmDashboard() {
         <h2>Ulasan Terbaru</h2>
 
         {reviews.map((review) => (
-          <article className="umkm-review-preview" key={review.name}>
+          <article className="umkm-review-preview" key={review.id}>
             <p>
               <strong>{review.name}</strong>
               <span>{review.rating}</span>

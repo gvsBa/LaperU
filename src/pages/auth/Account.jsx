@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Logo from "../../components/common/Logo";
 import Icon from "../../components/common/Icon";
@@ -11,102 +11,40 @@ const accountTabs = [
   { id: "activity", label: "Aktivitas Saya" },
 ];
 
-const loginSessions = [
-  {
-    device: "Chrome Windows",
-    location: "Bandung",
-    active: "2 jam lalu",
-    current: true,
-  },
-  { device: "Safari iPhone", location: "Ngawi", active: "1 hari lalu" },
-  { device: "Chrome Android", location: "Bali", active: "1 detik lalu" },
-];
+import { useAuth } from '../../auth/useAuth';
+import { privateApi, saveData } from '../../services/managementService';
+import { useRemote } from '../../services/useRemote';
+import { dateLabel } from '../../services/viewModels';
+import RemoteStatus from '../../components/common/RemoteStatus';
+const loginSessions = [];
 
-const loginHistory = [
-  {
-    time: "13 Okt 2026 12.00",
-    device: "Chrome Windows",
-    location: "Bandung",
-    status: "Perangkat ini",
-    current: true,
-  },
-  {
-    time: "10 Okt 2026 09.12",
-    device: "Safari iPhone",
-    location: "Ngawi",
-    status: "Gagal",
-  },
-  {
-    time: "7 Okt 2026 13.00",
-    device: "Chrome Android",
-    location: "Bali",
-    status: "Gagal",
-  },
-];
+const loginHistory = [];
 
-const activities = [
-  {
-    id: 1,
-    type: "review",
-    initials: "Iqs",
-    text: (
-      <>
-        Memberi ulasan di <strong>Nasi goreng pak Mamat</strong>
-      </>
-    ),
-    time: "13 Okt 2025, 19.00",
-    actions: ["Edit", "Hapus"],
-  },
-  {
-    id: 2,
-    type: "report",
-    initials: "Laq",
-    text: (
-      <>
-        Melaporkan <strong>Soto pak odang</strong> karena terlalu enak
-      </>
-    ),
-    time: "10 Okt 2025, 08.00",
-    actions: ["Lihat"],
-  },
-  {
-    id: 3,
-    type: "favorite",
-    initials: "Lxn",
-    text: (
-      <>
-        Menambahkan <strong>Sate asin gurih</strong> ke favorit
-      </>
-    ),
-    time: "",
-    actions: ["Hapus"],
-  },
-  {
-    id: 4,
-    type: "review",
-    initials: "Afg",
-    text: (
-      <>
-        Mengedit ulasan di <strong>Tianlala</strong>{" "}
-        <span className="account-stars">★★★★★ → ★★★★★</span>
-      </>
-    ),
-    time: "",
-    actions: ["Lihat"],
-  },
-];
+
 
 function Account() {
+  const { user, logout, error } = useAuth();
+  const loader = useCallback(async signal => {
+    if (user.role !== 'CUSTOMER') return { favorites: [], reviews: { items: [], pagination: { total: 0 } }, reports: [] };
+    const [favorites, reviews, reports] = await Promise.all(['/customer/favorites','/customer/reviews?limit=100','/customer/reports'].map(path => privateApi(path, { signal })));
+    return { favorites, reviews, reports };
+  }, [user.role]);
+  const remote = useRemote(loader);
+  const activities = [
+    ...(remote.data?.reviews.items || []).map(item => ({ id: item.id, type: 'review', initials: 'U', text: item.warungName + ': ' + (item.comment || 'Tanpa komentar'), time: dateLabel(item.createdAt), actions: ['Edit', 'Hapus'], slug: item.warungSlug })),
+    ...(remote.data?.favorites || []).map(item => ({ id: item.id, type: 'favorite', initials: 'F', text: item.name, time: dateLabel(item.favoritedAt), actions: ['Lihat', 'Hapus'], slug: item.slug })),
+    ...(remote.data?.reports || []).map(item => ({ id: item.id, type: 'report', initials: 'L', text: item.reason + ' · ' + item.status + (item.adminNote ? ' · ' + item.adminNote : ''), time: dateLabel(item.createdAt), actions: [] })),
+  ];
+  async function activityAction(item, action) {
+    if (action !== 'Hapus') { navigate('/restaurants/' + item.slug); return }
+    if (!window.confirm('Hapus ' + (item.type === 'review' ? 'ulasan ini beserta balasannya?' : 'warung dari favorit?'))) return;
+    await remote.run(() => saveData('/customer/' + (item.type === 'review' ? 'reviews/' : 'favorites/') + item.id, 'DELETE'));
+  }
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [activityFilter, setActivityFilter] = useState("all");
-  const [profile, setProfile] = useState({
-    fullName: "Nama Mahasiswa",
-    email: "mahasiswa@student.telkomuniversity.ac.id",
-    phone: "",
-    address: "",
-  });
+  const [activityFilter, setActivityFilter] = useState(searchParams.get("filter") || "all");
+  const profile = { fullName: user.fullName, email: user.email, phone: "", address: "" };
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const currentTab = accountTabs.some(
     (tab) => tab.id === searchParams.get("tab"),
@@ -134,10 +72,6 @@ function Account() {
     );
   }
 
-  function updateProfile(event) {
-    const { name, value } = event.target;
-    setProfile((current) => ({ ...current, [name]: value }));
-  }
 
   return (
     <div className="account-page">
@@ -190,16 +124,17 @@ function Account() {
           </button>
         </aside>
 
-        <section className="account-content">
+        <section className="account-content"><RemoteStatus remote={remote} />{error && <p role="alert">{error}</p>}
+          {user.role !== 'CUSTOMER' && <Link to={user.role === 'ADMIN' ? '/admin' : '/umkm'}>Buka Dashboard {user.role}</Link>}
           {currentTab === "profile" && (
-            <ProfilePanel profile={profile} onChange={updateProfile} />
+            <ProfilePanel profile={profile} stats={remote.data} />
           )}
 
           {currentTab === "security" && <SecurityPanel />}
 
           {currentTab === "activity" && (
             <ActivityPanel
-              activityFilter={activityFilter}
+              activities={activities} onAction={activityAction} activityFilter={activityFilter}
               onFilterChange={setActivityFilter}
             />
           )}
@@ -228,7 +163,7 @@ function Account() {
               <button
                 type="button"
                 className="logout-modal__confirm"
-                onClick={() => navigate("/explore")}
+                onClick={async () => { try { await logout(); navigate("/explore") } catch { /* Error is displayed above. */ } }}
               >
                 Keluar
               </button>
@@ -241,7 +176,7 @@ function Account() {
   );
 }
 
-function ProfilePanel({ profile, onChange }) {
+function ProfilePanel({ profile, stats }) {
   function resetProfile() {
     document.getElementById("profile-form")?.reset();
   }
@@ -258,15 +193,15 @@ function ProfilePanel({ profile, onChange }) {
 
       <section className="account-stat-grid" aria-label="Ringkasan akun">
         <article className="account-stat">
-          <strong>10</strong>
+          <span>Ulasan</span><strong>{stats?.reviews.pagination.total ?? "—"}</strong>
         </article>
         <article className="account-stat">
           <span>Warung favorit</span>
-          <strong>6</strong>
+          <strong>{stats?.favorites.length ?? "—"}</strong>
         </article>
         <article className="account-stat">
           <span>laporan dikirim</span>
-          <strong>20</strong>
+          <strong>{stats?.reports.length ?? "—"}</strong>
         </article>
       </section>
 
@@ -275,7 +210,7 @@ function ProfilePanel({ profile, onChange }) {
         className="account-card account-profile-form"
         onSubmit={(event) => event.preventDefault()}
       >
-        <h2>Data profil</h2>
+        <h2>Data profil</h2><p>Data akun dari server. Perubahan identitas/kontak belum tersedia.</p><fieldset disabled>
 
         <div className="account-form-grid">
           <label>
@@ -283,7 +218,7 @@ function ProfilePanel({ profile, onChange }) {
             <input
               name="fullName"
               value={profile.fullName}
-              onChange={onChange}
+              readOnly
             />
           </label>
 
@@ -293,7 +228,7 @@ function ProfilePanel({ profile, onChange }) {
               name="email"
               type="email"
               value={profile.email}
-              onChange={onChange}
+              readOnly
             />
           </label>
 
@@ -303,13 +238,13 @@ function ProfilePanel({ profile, onChange }) {
               name="phone"
               type="tel"
               value={profile.phone}
-              onChange={onChange}
+              readOnly
             />
           </label>
 
           <label>
             Alamat
-            <input name="address" value={profile.address} onChange={onChange} />
+            <input name="address" value={profile.address} readOnly />
           </label>
         </div>
 
@@ -325,14 +260,14 @@ function ProfilePanel({ profile, onChange }) {
             Simpan
           </button>
         </div>
-      </form>
+      </fieldset></form>
     </div>
   );
 }
 
 function SecurityPanel() {
   return (
-    <div className="account-panel account-security">
+    <div className="account-panel account-security"><p>Ubah password, 2FA, daftar perangkat, riwayat login dan nonaktif mandiri belum tersedia. Tidak ada perubahan keamanan yang dijalankan dari panel ini.</p><fieldset disabled>
       <form
         className="account-card"
         onSubmit={(event) => event.preventDefault()}
@@ -490,11 +425,11 @@ function SecurityPanel() {
           </button>
         </div>
       </section>
-    </div>
+    </fieldset></div>
   );
 }
 
-function ActivityPanel({ activityFilter, onFilterChange }) {
+function ActivityPanel({ activities, onAction, activityFilter, onFilterChange }) {
   const filters = [
     { id: "all", label: "Semua" },
     { id: "review", label: "Ulasan" },
@@ -522,9 +457,9 @@ function ActivityPanel({ activityFilter, onFilterChange }) {
         ))}
       </div>
 
-      <section className="account-card account-activity-list">
+      <section className="account-card account-activity-list"><p>Menampilkan maksimal 100 ulasan dan 100 laporan terbaru.</p>
         {visibleActivities.map((activity) => (
-          <article className="account-activity-item" key={activity.id}>
+          <article className="account-activity-item" key={activity.type + activity.id}>
             <span className="account-activity-item__avatar">
               {activity.initials}
             </span>
@@ -538,7 +473,7 @@ function ActivityPanel({ activityFilter, onFilterChange }) {
               {activity.actions.map((action) => (
                 <button
                   key={action}
-                  type="button"
+                  onClick={() => onAction(activity, action)} type="button"
                   className="account-button account-button--outline"
                 >
                   {action}

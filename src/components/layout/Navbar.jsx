@@ -2,6 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { useState } from 'react'
 import Logo from '../common/Logo'
 import Icon from '../common/Icon'
+import { useAuth } from '../../auth/useAuth'
 
 const navItems = [
   { to: '/', label: 'Beranda' },
@@ -11,6 +12,7 @@ const navItems = [
 ]
 
 function Navbar() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
 
   return (
@@ -27,13 +29,17 @@ function Navbar() {
             <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setOpen(false)}>{item.label}</NavLink>
           ))}
           <div className="navbar__mobile-actions">
+            {user ? <Link to="/account" className="button button--dark">Akun saya</Link> : <>
             <Link to="/register" className="button button--outline">Daftar</Link>
             <Link to="/login" className="button button--dark">Masuk</Link>
+            </>}
           </div>
         </nav>
         <div className="navbar__actions">
+          {user ? <Link to="/account" className="button button--dark">Akun saya</Link> : <>
           <Link to="/register" className="button button--outline">Daftar</Link>
           <Link to="/login" className="button button--dark">Masuk</Link>
+          </>}
         </div>
       </div>
     </header>
