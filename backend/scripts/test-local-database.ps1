@@ -24,7 +24,7 @@ $databaseName = "laperu_test_$runId"
 $databasePassword = [guid]::NewGuid().ToString('N')
 $databaseProcess = $null
 $exitCode = 1
-$environmentNames = @('DATABASE_URL', 'NODE_ENV', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'LAPERU_INTEGRATION_TESTS', 'UPLOAD_DIRECTORY', 'MYSQL_PWD')
+$environmentNames = @('DATABASE_URL', 'NODE_ENV', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'LAPERU_INTEGRATION_TESTS', 'UPLOAD_DIRECTORY', 'MYSQL_PWD', 'LAPERU_DEMO_CREDENTIALS', 'LAPERU_SHOWCASE_CREDENTIALS')
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
   $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -83,6 +83,8 @@ try {
   $env:ADMIN_PASSWORD = 'QaAdmin12345'
   $env:LAPERU_INTEGRATION_TESTS = '1'
   $env:UPLOAD_DIRECTORY = Join-Path $runDirectory 'uploads'
+  $env:LAPERU_DEMO_CREDENTIALS = Join-Path $runDirectory 'demo-accounts.json'
+  $env:LAPERU_SHOWCASE_CREDENTIALS = Join-Path $runDirectory 'showcase-accounts.json'
   Set-Location -LiteralPath $backendDirectory
   & npm.cmd run db:migrate
   if ($LASTEXITCODE -ne 0) { throw 'Migrasi QA gagal.' }
@@ -93,6 +95,14 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Pengulangan migrasi QA gagal.' }
   & npm.cmd run db:seed
   if ($LASTEXITCODE -ne 0) { throw 'Pengulangan seed QA gagal.' }
+  & npm.cmd run db:seed:demo
+  if ($LASTEXITCODE -ne 0) { throw 'Seed akun demo QA gagal.' }
+  & npm.cmd run db:seed:demo
+  if ($LASTEXITCODE -ne 0) { throw 'Pengulangan seed akun demo QA gagal.' }
+  & npm.cmd run db:seed:showcase
+  if ($LASTEXITCODE -ne 0) { throw 'Seed showcase QA gagal.' }
+  & npm.cmd run db:seed:showcase
+  if ($LASTEXITCODE -ne 0) { throw 'Pengulangan seed showcase QA gagal.' }
   & npm.cmd run test:integration
   $exitCode = $LASTEXITCODE
   if ($BrowserSmoke -and $exitCode -eq 0) {

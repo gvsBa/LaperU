@@ -15,6 +15,7 @@ interface UserRow extends RowDataPacket {
   passwordHash: string
   role: UserRole
   status: UserStatus
+  authVersion: number
 }
 
 interface RefreshRow extends UserRow {
@@ -34,52 +35,59 @@ function duplicateEntry(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY'
 }
 
-function accessToken(user: PublicUser) {
+function accessToken(user: PublicUser, version: number) {
   const options: SignOptions = {
     audience: 'laperu-web',
     expiresIn: env.ACCESS_TOKEN_TTL as SignOptions['expiresIn'],
     issuer: 'laperu-api',
     subject: user.id,
   }
-  return jwt.sign({ role: user.role }, env.JWT_ACCESS_SECRET, options)
+  return jwt.sign({ role: user.role, version }, env.JWT_ACCESS_SECRET, options)
 }
 
 function hashRefreshToken(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-async function createSession(user: PublicUser, metadata: SessionMetadata, connection: PoolConnection | typeof pool = pool) {
+async function createSession(user: PublicUser, metadata: SessionMetadata, connection: PoolConnection | typeof pool = pool, version = 0) {
   const refreshToken = randomBytes(48).toString('base64url')
+  const signedAccessToken = accessToken(user, version)
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000)
   await connection.execute(
     'INSERT INTO refresh_tokens (id, user_id, token_hash, user_agent, ip_address, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [randomUUID(), user.id, hashRefreshToken(refreshToken), metadata.userAgent ?? null, metadata.ip ?? null, expiresAt],
+    [randomUUID(), user.id, hashRefreshToken(refreshToken), metadata.userAgent?.slice(0, 500) ?? null, metadata.ip?.slice(0, 64) ?? null, expiresAt],
   )
-  return { accessToken: accessToken(user), refreshToken, user }
+  return { accessToken: signedAccessToken, refreshToken, user }
 }
 
 export async function registerCustomer(input: CustomerRegistrationInput, metadata: SessionMetadata) {
   const id = randomUUID()
   const passwordHash = await bcrypt.hash(input.password, 12)
+  const connection = await pool.getConnection()
   try {
-    await pool.execute(
+    await connection.beginTransaction()
+    await connection.execute(
       'INSERT INTO users (id, full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, \'CUSTOMER\', \'ACTIVE\')',
       [id, input.fullName, input.email, passwordHash],
     )
+    const session = await createSession({ id, fullName: input.fullName, email: input.email, role: 'CUSTOMER', status: 'ACTIVE' }, metadata, connection)
+    await connection.commit()
+    return session
   } catch (error) {
+    await connection.rollback()
     if (duplicateEntry(error)) throw new ApiError(409, 'EMAIL_EXISTS', 'Email sudah digunakan.')
     throw error
+  } finally {
+    connection.release()
   }
-
-  return createSession({ id, fullName: input.fullName, email: input.email, role: 'CUSTOMER', status: 'ACTIVE' }, metadata)
 }
 
 export async function registerUmkm(input: UmkmRegistrationInput, metadata: SessionMetadata) {
-  const connection = await pool.getConnection()
   const userId = randomUUID()
   const profileId = randomUUID()
   const submissionId = randomUUID()
   const passwordHash = await bcrypt.hash(input.password, 12)
+  const connection = await pool.getConnection()
 
   try {
     await connection.beginTransaction()
@@ -112,16 +120,28 @@ export async function registerUmkm(input: UmkmRegistrationInput, metadata: Sessi
 }
 
 export async function login(input: LoginInput, metadata: SessionMetadata) {
-  const [rows] = await pool.execute<UserRow[]>(
-    'SELECT id, full_name AS fullName, email, password_hash AS passwordHash, role, status FROM users WHERE email = ? LIMIT 1',
-    [input.email],
-  )
-  const user = rows[0]
-  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
-    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email atau kata sandi salah.')
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    // Serialize credential verification and session creation with password resets.
+    const [rows] = await connection.execute<UserRow[]>(
+      'SELECT id, full_name AS fullName, email, password_hash AS passwordHash, role, status, auth_version AS authVersion FROM users WHERE email = ? LIMIT 1 FOR UPDATE',
+      [input.email],
+    )
+    const user = rows[0]
+    if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
+      throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email atau kata sandi salah.')
+    }
+    if (user.status === 'SUSPENDED') throw new ApiError(403, 'ACCOUNT_SUSPENDED', 'Akun sedang ditangguhkan.')
+    const session = await createSession(publicUser(user), metadata, connection, user.authVersion)
+    await connection.commit()
+    return session
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
-  if (user.status === 'SUSPENDED') throw new ApiError(403, 'ACCOUNT_SUSPENDED', 'Akun sedang ditangguhkan.')
-  return createSession(publicUser(user), metadata)
 }
 
 async function rotateSession(token: string, metadata: SessionMetadata) {
@@ -138,7 +158,7 @@ async function rotateSession(token: string, metadata: SessionMetadata) {
     )
     if (claim.affectedRows !== 1) throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
     const [rows] = await connection.execute<RefreshRow[]>(
-      `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status
+      `SELECT rt.id AS refreshId, u.id, u.full_name AS fullName, u.email, u.password_hash AS passwordHash, u.role, u.status, u.auth_version AS authVersion
        FROM refresh_tokens rt JOIN users u ON u.id = rt.user_id
        WHERE rt.token_hash = ? LIMIT 1`,
       [hash],
@@ -146,7 +166,7 @@ async function rotateSession(token: string, metadata: SessionMetadata) {
     const row = rows[0]
     if (!row || row.status === 'SUSPENDED') throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Sesi sudah tidak berlaku.')
 
-    const session = await createSession(publicUser(row), metadata, connection)
+    const session = await createSession(publicUser(row), metadata, connection, row.authVersion)
     await connection.commit()
     return session
   } catch (error) {

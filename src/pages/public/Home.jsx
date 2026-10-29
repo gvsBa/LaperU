@@ -3,6 +3,8 @@ import Icon from '../../components/common/Icon'
 import { getFeaturedRestaurants } from '../../services/restaurantService'
 import { useRemote } from '../../services/useRemote'
 import RemoteStatus from '../../components/common/RemoteStatus'
+import FoodArtwork from '../../components/restaurant/FoodArtwork'
+import ListingNotice from '../../components/restaurant/ListingNotice'
 const loadFeatured = signal => getFeaturedRestaurants({ signal })
 
 const categories = [
@@ -10,49 +12,49 @@ const categories = [
     icon: '☕',
     title: 'Sarapan',
     description: 'Awali hari dengan pilihan sarapan yang praktis dan mengenyangkan.',
-    query: 'sarapan',
+    category: 'Nasi',
   },
   {
     icon: '🍜',
     title: 'Makanan Utama',
     description: 'Cari makanan berat favorit buat makan siang sampai malam.',
-    query: 'makanan',
+    category: 'Ayam',
   },
   {
     icon: '🥤',
     title: 'Minuman',
     description: 'Pilihan minuman segar buat nemenin aktivitas di kampus.',
-    query: 'minuman',
+    category: 'Minuman',
   },
   {
     icon: '🍰',
-    title: 'Dessert',
-    description: 'Yang manis-manis buat nutup hari atau sekadar ngemil.',
-    query: 'dessert',
+    title: 'Camilan',
+    description: 'Temukan teman ngemil untuk jeda di antara aktivitasmu.',
+    category: 'Camilan',
   },
 ]
 
 const testimonials = [
   {
-    quote: '“Makanannya enak dan harganya masih aman buat anak kos.”',
-    text: 'Informasi harga sama lokasinya ngebantu banget pas lagi bingung mau makan di mana.',
-    name: 'Sophie Robson',
-    place: 'Sukabirus, Bojongsoang',
-    initials: 'SR',
+    quote: 'Cari sesuai selera dan anggaran.',
+    text: 'Bandingkan menu, simpan favorit, dan bagikan ulasan melalui akunmu.',
+    name: 'Untuk mahasiswa',
+    place: 'Temukan • Simpan • Ulas',
+    initials: '01',
   },
   {
-    quote: '“Tempatnya bersih dan pilihannya banyak.”',
-    text: 'Jadi lebih gampang cari warung yang sesuai budget tanpa harus muter-muter dulu.',
-    name: 'Matt Cannon',
-    place: 'Ciganitri, Bojongsoang',
-    initials: 'MC',
+    quote: 'Warungmu, informasi yang terkelola.',
+    text: 'Kelola menu, jam operasional, fasilitas, dan balas ulasan setelah pengajuan disetujui.',
+    name: 'Untuk pemilik warung',
+    place: 'Ajukan • Kelola • Tanggapi',
+    initials: '02',
   },
   {
-    quote: '“Menu dan fasilitas warungnya lengkap.”',
-    text: 'Bisa cek rating, jarak, sampai metode pembayaran sebelum datang ke warungnya.',
-    name: 'Andy Smith',
-    place: 'Sukapura, Bojongsoang',
-    initials: 'AS',
+    quote: 'Informasi yang bisa ditinjau bersama.',
+    text: 'Tinjau pengajuan usaha, tangani laporan, dan moderasi ulasan melalui dashboard admin.',
+    name: 'Untuk pengelola',
+    place: 'Tinjau • Moderasi • Pantau',
+    initials: '03',
   },
 ]
 
@@ -83,13 +85,13 @@ function Home() {
         </div>
       </section>
 
-      <section className="home-featured" id="rekomendasi"><RemoteStatus remote={remote} />
+      <section className="home-featured" id="rekomendasi"><div className="section-intro"><span className="section-eyebrow">DEKAT KAMPUS, DEKAT SELERA</span><h2>Mulai dari pilihan ini.</h2><p>Jelajahi referensi kuliner lokal dan coba pengalaman lengkap di katalog simulasi.</p><Link to="/explore">Lihat semua warung →</Link></div><RemoteStatus remote={remote} />
         <div className="home-featured__grid">
           {featuredMenus.map((item) => (
             <article className="home-menu-card" key={item.id}>
               <div className="home-menu-card__media">
                 <Link to={`/restaurants/${item.slug}`} aria-label={`Lihat ${item.name}`}>
-                  {item.photoUrl ? <img className="home-menu-card__image" src={item.photoUrl} alt={item.name} /> : <div className="home-menu-card__image">Foto belum tersedia</div>}
+                  {item.photoUrl ? <img className="home-menu-card__image" src={item.photoUrl} alt={item.name} loading="lazy" /> : <FoodArtwork category={item.category} />}
                 </Link>
 
                 <Link
@@ -103,7 +105,7 @@ function Home() {
 
               <div className="home-menu-card__body">
                 <div>
-                  <h2>{item.name}</h2>
+                  <ListingNotice restaurant={item} compact /><h2>{item.name}</h2>
                   <p>{item.category}</p>
                 </div>
                 <strong>{item.priceRange}</strong>
@@ -114,7 +116,7 @@ function Home() {
       </section>
 
       <section className="home-categories" id="menu">
-        <h2>Browse Our Menu</h2>
+        <h2>Ada selera untuk setiap jeda.</h2>
 
         <div className="home-categories__grid">
           {categories.map((category) => (
@@ -122,14 +124,14 @@ function Home() {
               <span className="home-category-card__icon" aria-hidden="true">{category.icon}</span>
               <h3>{category.title}</h3>
               <p>{category.description}</p>
-              <Link to={`/explore?q=${category.query}`}>Jelajahi Menu</Link>
+              <Link to={`/explore?category=${encodeURIComponent(category.category)}`}>Jelajahi Menu</Link>
             </article>
           ))}
         </div>
       </section>
 
       <section className="home-testimonials" id="tentang">
-        <h2>Contoh pengalaman penggunaan</h2><p>Ilustrasi konten desain, bukan testimoni pengguna terverifikasi.</p>
+        <h2>Satu tempat, banyak kemudahan.</h2><p>Dari mencari makan sampai mengelola warung di sekitar kampus.</p>
 
         <div className="home-testimonials__grid">
           {testimonials.map((testimonial) => (

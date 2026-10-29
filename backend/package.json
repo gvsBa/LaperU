@@ -12,9 +12,13 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:database:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local-database.ps1",
     "qa:generate-images": "tsx scripts/generate-qa-images.ts",
+    "check:local": "tsx scripts/check-local.ts",
+    "check:offline": "node scripts/check-offline-browser.mjs",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo"
+    "db:seed:demo": "tsx scripts/seed-demo.ts --local-demo",
+    "db:seed:showcase": "tsx scripts/seed-showcase.ts --local-demo",
+    "db:backup:local": "tsx scripts/backup-local.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

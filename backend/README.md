@@ -7,13 +7,15 @@ REST API versi awal yang mengikuti kebutuhan fitur pada Notion untuk Guest, Cust
 | Area | Endpoint |
 |---|---|
 | Sistem | `GET /api/v1/health`, `GET /api/v1/health/database` |
-| Auth | registrasi Customer/UMKM, login, refresh, logout, profil akun |
+| Auth | registrasi Customer/UMKM, login, refresh, logout, profil akun, kode pemulihan offline, reset dan ganti password |
 | Guest | pencarian/filter dan detail warung, metadata filter |
 | Customer | favorit, riwayat dan ulasan multidimensi, serta laporan |
 | UMKM | pengajuan, profil warung, menu, jam operasional, fasilitas, pembayaran, unggah foto, balasan ulasan, dan statistik |
 | Admin | dashboard, verifikasi pengajuan, pengguna, warung, kategori, fasilitas, moderasi, dan audit log |
 
 Spesifikasi request dan response tersedia di `openapi.yaml`.
+
+Pembaruan 29 Oktober 2026: [panduan showcase dan recovery](../docs/SHOWCASE_AND_RECOVERY.md). Skema kini 21 tabel setelah migrasi 002. Kode pemulihan harus dibuat dengan password saat ini sebelum lupa password; tidak ada reset otomatis hanya bermodal email/nama.
 
 ## Setup database lokal XAMPP
 

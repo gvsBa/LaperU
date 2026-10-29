@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { refreshSession } from '../src/modules/auth/auth.service.js'
+import { refreshSession, registerCustomer } from '../src/modules/auth/auth.service.js'
 
 const mocks = vi.hoisted(() => ({
   connection: {
@@ -26,6 +26,16 @@ beforeEach(() => {
 })
 
 describe('refresh session transaction', () => {
+  it('membatasi metadata sesi sesuai kapasitas kolom database', async () => {
+    mocks.connection.execute
+      .mockResolvedValueOnce([{ affectedRows: 1 }, []])
+      .mockResolvedValueOnce([[user], []])
+      .mockResolvedValueOnce([{ affectedRows: 1 }, []])
+    await refreshSession(currentToken, { userAgent: 'x'.repeat(1000), ip: 'y'.repeat(100) })
+    const values = mocks.connection.execute.mock.calls[2]![1]
+    expect(values[3]).toHaveLength(500)
+    expect(values[4]).toHaveLength(64)
+  })
   it('mengunci token, mencabutnya, dan menyimpan penggantinya dalam transaksi yang sama', async () => {
     mocks.connection.execute
       .mockResolvedValueOnce([{ affectedRows: 1 }, []])
@@ -116,5 +126,29 @@ describe('refresh session transaction', () => {
     await expect(refreshSession(currentToken, {})).rejects.toBe(failure)
     expect(mocks.connection.beginTransaction).toHaveBeenCalledTimes(3)
     expect(mocks.connection.release).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('customer registration transaction', () => {
+  const input = { fullName: 'Customer QA', email: 'customer@example.test', password: 'TestPassword123' }
+
+  it('menyimpan akun dan sesi secara atomik', async () => {
+    mocks.connection.execute.mockResolvedValue([{ affectedRows: 1 }, []])
+    const result = await registerCustomer(input, {})
+    expect(result.user.role).toBe('CUSTOMER')
+    expect(mocks.pool.execute).not.toHaveBeenCalled()
+    expect(mocks.connection.beginTransaction).toHaveBeenCalledOnce()
+    expect(mocks.connection.execute).toHaveBeenCalledTimes(2)
+    expect(mocks.connection.commit).toHaveBeenCalledOnce()
+    expect(mocks.connection.release).toHaveBeenCalledOnce()
+  })
+
+  it('rollback akun jika penyimpanan sesi gagal sehingga email dapat dicoba lagi', async () => {
+    const failure = new Error('Session storage unavailable')
+    mocks.connection.execute.mockResolvedValueOnce([{ affectedRows: 1 }, []]).mockRejectedValueOnce(failure)
+    await expect(registerCustomer(input, {})).rejects.toBe(failure)
+    expect(mocks.connection.rollback).toHaveBeenCalledOnce()
+    expect(mocks.connection.commit).not.toHaveBeenCalled()
+    expect(mocks.connection.release).toHaveBeenCalledOnce()
   })
 })

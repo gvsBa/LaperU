@@ -8,6 +8,7 @@ backend/test-data/generated
 !.env.example
 *.local
 .demo-accounts.local.json
+.showcase-accounts.local.json
 *.log
 .DS_Store
 test-results/

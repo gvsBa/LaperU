@@ -6,6 +6,7 @@ import RestaurantDetail from "../pages/public/RestaurantDetail";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import Account from "../pages/auth/Account";
+import Recovery from '../pages/auth/Recovery'
 import UmkmLayout from "../components/umkm/UmkmLayout";
 import UmkmDashboard from "../pages/umkm/UmkmDashboard";
 import UmkmSubmission from "../pages/umkm/UmkmSubmission";
@@ -36,6 +37,7 @@ function AppRoutes() {
       <Route path="/explore" element={<Explore />} />
       <Route path="/restaurants/:slug" element={<RestaurantDetail />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<Recovery />} />
       <Route path="/register" element={<Register />} />
       <Route path="/favorites" element={<Navigate to="/account?tab=activity&filter=favorite" replace />} />
       <Route path="/reviews" element={<Navigate to="/account?tab=activity&filter=review" replace />} />

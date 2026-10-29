@@ -11,7 +11,7 @@ Branch ini dimulai dari desain FE terbaru; perubahan src adalah penghubung API k
 
 Yang diperlukan bersama Backend: package.json/lockfile, konfigurasi Vite/proxy, AuthProvider, service API, route guards, dan perubahan handler/data di halaman. Checkout branch integrasi untuk menguji paket yang sama dengan QA. Merge ke branch FE dilakukan setelah review; main tidak diubah otomatis.
 
-Struktur visual FE (sidebar, tabel, kartu, modal, palet/aset) dipertahankan. Penyesuaian disengaja: data dummy/angka palsu dihapus; halaman akun menampilkan identitas asli dan fitur keamanan belum tersedia dibuat read-only; loading/error/retry/pagination ditambah; logout UMKM tetap terlihat di mobile. Halaman akun UMKM disederhanakan sehingga tidak identik per-pixel dengan prototype keamanan yang belum diimplementasikan.
+Struktur visual FE (sidebar, tabel, kartu, modal, palet/aset) dipertahankan. Penyesuaian disengaja: data dummy/angka palsu statis diganti API; halaman akun menampilkan identitas akun; loading/error/retry/pagination ditambah; logout UMKM tetap terlihat di mobile. Pembaruan 29 Oktober: UI recovery offline dan ganti password sudah terhubung; katalog mendapat label sumber/simulasi serta polish responsif. Keamanan yang tidak termasuk implementasi, seperti 2FA, tidak disimulasikan berhasil.
 
 ## Cakupan yang sudah dihubungkan
 
@@ -33,7 +33,7 @@ Tambahan kontrak non-breaking:
 ## Batasan yang harus diberitahu saat penyerahan
 
 Bukan implementasi penuh semua fitur pada prototype. Berikut belum tersedia dan tidak boleh dinyatakan selesai:
-- Edit identitas profil akun, reset/lupa/ganti password, email verifikasi mahasiswa.
+- Edit identitas profil akun dan email verifikasi mahasiswa. **Pembaruan 29 Oktober:** ganti password dan reset offline memakai kode pemulihan sudah tersedia; lihat SHOWCASE_AND_RECOVERY.md.
 - 2FA, daftar perangkat, riwayat login, logout semua perangkat, nonaktif akun mandiri.
 - Notifikasi, promo/randomizer, foto ulasan, hapus/ganti foto galeri.
 - Grafik statistik harian. Tayangan profil dihitung sebagai request detail, bukan orang unik; reload menambah tayangan.
@@ -41,7 +41,7 @@ Bukan implementasi penuh semua fitur pada prototype. Berikut belum tersedia dan 
 - Sebagian tabel Admin menggunakan pencarian/filter atas 20 data halaman aktif dan diberi keterangan. Audit maksimum 200 terbaru; ulasan publik maksimum 50; riwayat Customer maksimum 100; ulasan UMKM maksimum 200. Daftar laporan Admin belum dipaginasi.
 - Nearest mengecualikan warung tanpa koordinat. Koordinat dapat diisi melalui kontrak profil Backend; UI pemilih lokasi belum tersedia.
 - Penyimpanan profil/fasilitas/pembayaran adalah tiga request terpisah; bila salah satunya gagal, perubahan sebelumnya bisa sudah tersimpan. Error ditampilkan; reload untuk memeriksa data.
-- Data demo bukan usaha nyata. Registrasi mahasiswa belum membuktikan identitas mahasiswa.
+- Katalog kini memisahkan 16 referensi usaha publik dari 12 usaha simulasi. Aktivitas seed hanya pada usaha simulasi; identitas pemilik referensi tidak diklaim terverifikasi. Registrasi mahasiswa belum membuktikan identitas mahasiswa.
 - Tidak ada order, pembayaran online atau delivery.
 - Review UI/UX akhir, uji laptop Fikri, Safari fisik dan pengukuran performa masih perlu manusia/perangkat terkait.
 

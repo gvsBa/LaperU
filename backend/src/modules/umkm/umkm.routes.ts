@@ -74,36 +74,58 @@ umkmRouter.get('/application', asyncHandler(async (req, res) => {
 }))
 
 umkmRouter.patch('/application', validate(applicationUpdateSchema), asyncHandler(async (req, res) => {
-  const profile = await getProfile(req.auth!.sub)
-  if (!['DRAFT', 'REVISION'].includes(profile.submissionStatus)) {
-    throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat diubah pada status saat ini.')
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const application = await lockEditableApplication(req.auth!.sub, connection)
+    const { assignments, values } = buildUpdate(req.body, {
+      address: 'address', businessName: 'business_name', businessType: 'business_type',
+      ownerName: 'owner_name', phone: 'phone', storefrontPhotoUrl: 'storefront_photo_url',
+    })
+    await connection.execute(`UPDATE umkm_profiles SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, String(application.id)])
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
-  const { assignments, values } = buildUpdate(req.body, {
-    address: 'address', businessName: 'business_name', businessType: 'business_type',
-    ownerName: 'owner_name', phone: 'phone', storefrontPhotoUrl: 'storefront_photo_url',
-  })
-  await pool.execute(`UPDATE umkm_profiles SET ${assignments}, updated_at = NOW() WHERE id = ?`, [...values, profile.id])
   sendOk(res, null, 200, 'Data pengajuan berhasil disimpan.')
 }))
 
-umkmRouter.post('/application/submit', asyncHandler(async (req, res) => {
-  const [rows] = await pool.execute<GenericRow[]>(
+async function lockEditableApplication(userId: string, connection: PoolConnection) {
+  const [rows] = await connection.execute<GenericRow[]>(
     `SELECT up.id, up.business_name, up.owner_name, up.phone, up.address, up.storefront_photo_url, us.status
-     FROM umkm_profiles up JOIN umkm_submissions us ON us.umkm_profile_id = up.id
-     WHERE up.user_id = ? LIMIT 1`,
-    [req.auth!.sub],
+     FROM umkm_submissions us JOIN umkm_profiles up ON up.id = us.umkm_profile_id
+     WHERE up.user_id = ? LIMIT 1 FOR UPDATE`,
+    [userId],
   )
   const application = rows[0]
   if (!application) throw new ApiError(404, 'UMKM_PROFILE_NOT_FOUND', 'Profil UMKM tidak ditemukan.')
-  if (!['DRAFT', 'REVISION'].includes(String(application.status))) throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat dikirim pada status saat ini.')
-  if (!application.business_name || !application.owner_name || !application.phone || !application.address || !application.storefront_photo_url) {
-    throw new ApiError(422, 'APPLICATION_INCOMPLETE', 'Lengkapi identitas dan foto tampak depan warung sebelum mengajukan.')
+  if (!['DRAFT', 'REVISION'].includes(String(application.status))) throw new ApiError(409, 'APPLICATION_LOCKED', 'Pengajuan tidak dapat diubah atau dikirim pada status saat ini.')
+  return application
+}
+
+umkmRouter.post('/application/submit', asyncHandler(async (req, res) => {
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const application = await lockEditableApplication(req.auth!.sub, connection)
+    if (!application.business_name || !application.owner_name || !application.phone || !application.address || !application.storefront_photo_url) {
+      throw new ApiError(422, 'APPLICATION_INCOMPLETE', 'Lengkapi identitas dan foto tampak depan warung sebelum mengajukan.')
+    }
+    await connection.execute(
+      `UPDATE umkm_submissions SET status = 'PENDING', admin_note = NULL, submitted_at = NOW(), reviewed_at = NULL, reviewed_by = NULL
+       WHERE umkm_profile_id = ?`,
+      [String(application.id)],
+    )
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
-  await pool.execute(
-    `UPDATE umkm_submissions SET status = 'PENDING', admin_note = NULL, submitted_at = NOW(), reviewed_at = NULL
-     WHERE umkm_profile_id = ?`,
-    [String(application.id)],
-  )
   sendOk(res, null, 200, 'Pengajuan berhasil dikirim untuk diverifikasi.')
 }))
 

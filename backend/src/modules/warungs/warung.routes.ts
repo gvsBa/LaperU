@@ -15,6 +15,7 @@ const ratingExpression = `COALESCE((SELECT AVG((r.taste_rating + r.price_rating 
 const openExpression = `CASE
   WHEN w.status_override = 'CLOSED' THEN 0
   WHEN w.status_override = 'OPEN' THEN 1
+  WHEN NOT EXISTS (SELECT 1 FROM operating_hours known_hours WHERE known_hours.warung_id = w.id) THEN NULL
   ELSE EXISTS(
     SELECT 1 FROM operating_hours oh
     WHERE oh.warung_id = w.id AND oh.day_of_week = WEEKDAY(NOW())
@@ -25,6 +26,7 @@ export const publicWarungRouter = Router()
 
 publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(async (req, res) => {
   const query = req.query as unknown as {
+    dataset?: 'reference' | 'simulation'
     category?: string; facility?: string; latitude?: number; limit: number; longitude?: number; maxPrice?: number; minPrice?: number
     minRating?: number; openNow?: boolean; page: number; payment?: string; q?: string; radiusKm?: number; sort?: 'recommended' | 'rating' | 'cheapest' | 'nearest'
   }
@@ -32,6 +34,10 @@ publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(as
   const params: Array<string | number> = []
   const selectParams: Array<number> = []
   let distanceSelect = 'NULL AS distanceKm'
+  if (query.dataset) {
+    where.push('EXISTS (SELECT 1 FROM listing_sources ds WHERE ds.warung_id = w.id AND ds.data_kind = ?)')
+    params.push(query.dataset === 'reference' ? 'PUBLIC_REFERENCE' : 'SIMULATION')
+  }
 
   if (query.q) {
     where.push(`(w.name LIKE ? OR w.description LIKE ? OR EXISTS (SELECT 1 FROM menu_items mi WHERE mi.warung_id = w.id AND mi.is_active = 1 AND mi.name LIKE ?))`)
@@ -74,10 +80,11 @@ publicWarungRouter.get('/', validate(warungListSchema, 'query'), asyncHandler(as
     `SELECT w.id, w.name, w.slug, w.address, w.latitude, w.longitude, w.price_min AS priceMin,
       w.price_max AS priceMax, w.status_override AS statusOverride, w.updated_at AS updatedAt,
       (SELECT p.url FROM photos p WHERE p.warung_id = w.id ORDER BY p.sort_order, p.id LIMIT 1) AS photoUrl,
-      c.name AS category, ${distanceSelect}, ${ratingExpression} AS rating,
+       ls.data_kind AS dataKind, ls.source_url AS sourceUrl, ls.checked_on AS sourceCheckedOn, ls.note AS sourceNote,
+       c.name AS category, ${distanceSelect}, ${ratingExpression} AS rating,
       (SELECT COUNT(*) FROM reviews r WHERE r.warung_id = w.id AND r.status = 'VISIBLE') AS reviewCount,
       ${openExpression} AS isOpen
-     FROM warungs w LEFT JOIN categories c ON c.id = w.category_id
+     FROM warungs w LEFT JOIN categories c ON c.id = w.category_id LEFT JOIN listing_sources ls ON ls.warung_id = w.id
      WHERE ${whereSql}
      ORDER BY ${ordering}, w.name ASC LIMIT ? OFFSET ?`,
     [...selectParams, ...params, query.limit, offset],
@@ -92,10 +99,11 @@ publicWarungRouter.get('/:slug', validate(warungSlugSchema, 'params'), asyncHand
   const [warungRows] = await pool.execute<GenericRow[]>(
     `SELECT w.id, w.name, w.slug, w.description, w.address, w.phone, w.latitude, w.longitude,
       w.price_min AS priceMin, w.price_max AS priceMax, w.status_override AS statusOverride,
-      w.updated_at AS updatedAt, c.name AS category, ${ratingExpression} AS rating,
+       ls.data_kind AS dataKind, ls.source_url AS sourceUrl, ls.checked_on AS sourceCheckedOn, ls.note AS sourceNote,
+       w.updated_at AS updatedAt, c.name AS category, ${ratingExpression} AS rating,
       (SELECT COUNT(*) FROM reviews r WHERE r.warung_id = w.id AND r.status = 'VISIBLE') AS reviewCount,
       ${openExpression} AS isOpen
-     FROM warungs w LEFT JOIN categories c ON c.id = w.category_id
+     FROM warungs w LEFT JOIN categories c ON c.id = w.category_id LEFT JOIN listing_sources ls ON ls.warung_id = w.id
      WHERE w.slug = ? AND w.approval_status = 'APPROVED' AND w.is_active = 1 LIMIT 1`,
     [slug],
   )

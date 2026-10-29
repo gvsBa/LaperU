@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { addFavorite } from '../../services/restaurantService'
 import Icon from '../common/Icon'
+import ListingNotice from './ListingNotice'
+import FoodArtwork from './FoodArtwork'
 
 function RestaurantCard({ restaurant }) {
   const navigate = useNavigate()
@@ -27,7 +29,7 @@ function RestaurantCard({ restaurant }) {
           className="restaurant-card__image-wrap"
           aria-label={`Lihat ${restaurant.name}`}
         >
-          {restaurant.photoUrl ? <img className="restaurant-card__image" src={restaurant.photoUrl} alt={restaurant.name} loading="lazy" /> : <div className="restaurant-card__image"><span>Foto belum tersedia</span></div>}
+          {restaurant.photoUrl ? <img className="restaurant-card__image" src={restaurant.photoUrl} alt={restaurant.name} loading="lazy" /> : <FoodArtwork category={restaurant.category} />}
         </Link>
 
         <span
@@ -35,7 +37,7 @@ function RestaurantCard({ restaurant }) {
             restaurant.isOpen ? 'status--open' : 'status--closed'
           }`}
         >
-          {restaurant.isOpen ? 'Buka' : 'Tutup'}
+          {restaurant.isOpen == null ? 'Jam belum dikonfirmasi' : restaurant.isOpen ? 'Buka' : 'Tutup'}
         </span>
 
         <button
@@ -48,10 +50,11 @@ function RestaurantCard({ restaurant }) {
       </div>
 
       <div className="restaurant-card__body">{message && <p role="status">{message}</p>}
+        <ListingNotice restaurant={restaurant} compact />
         <div className="restaurant-card__heading">
           <Link to={detailUrl}>{restaurant.name}</Link>
           <span>
-            <Icon name="star" size={15} filled /> {restaurant.rating}
+            <Icon name="star" size={15} filled /> {restaurant.reviewCount ? Number(restaurant.rating).toFixed(1) : 'Baru'}
           </span>
         </div>
 

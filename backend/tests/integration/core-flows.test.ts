@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import request, { type Response } from 'supertest'
@@ -100,12 +101,15 @@ describe.sequential('API + real SQL database: isolated cross-role core journey',
   })
 
   it('02 registers distinct customers, rejects a duplicate email and rejects invalid input', async () => {
-    const registration = await request(app).post(`${api}/auth/register/customer`).send(customerInput).expect(201)
+    const registration = await request(app).post(`${api}/auth/register/customer`)
+      .set('User-Agent', 'QA'.repeat(600)).send({ ...customerInput, role: 'ADMIN', status: 'ACTIVE' }).expect(201)
     customer = registration.body.data
     expect(customer.user).toMatchObject({ role: 'CUSTOMER', status: 'ACTIVE', email: customerInput.email })
     expect(customer.accessToken).toEqual(expect.any(String))
     expect(customer.user).not.toHaveProperty('passwordHash')
     expect(registration.headers['set-cookie']).toEqual(expect.arrayContaining([expect.stringContaining('HttpOnly')]))
+    const [metadata] = await pool.query('SELECT CHAR_LENGTH(user_agent) AS length FROM refresh_tokens WHERE user_id = ?', [customer.user.id])
+    expect(metadata).toEqual(expect.arrayContaining([expect.objectContaining({ length: 500 })]))
     const duplicate = await request(app).post(`${api}/auth/register/customer`).send(customerInput)
     expectCode(duplicate, 409, 'EMAIL_EXISTS')
     const invalid = await request(app).post(`${api}/auth/register/customer`).send({ ...customerInput, email: 'invalid', password: 'short' })
@@ -190,7 +194,12 @@ describe.sequential('API + real SQL database: isolated cross-role core journey',
       .attach('image', Buffer.from('not a real image'), { filename: 'fake.png', contentType: 'image/png' })
     expectCode(fake, 422, 'INVALID_IMAGE_CONTENT')
     await request(app).patch(`${api}/umkm/application`).set(auth(owner.accessToken)).send({ storefrontPhotoUrl: imageUrl }).expect(200)
-    await request(app).post(`${api}/umkm/application/submit`).set(auth(owner.accessToken)).expect(200)
+    const submissions = await Promise.all([
+      request(app).post(`${api}/umkm/application/submit`).set(auth(owner.accessToken)),
+      request(app).post(`${api}/umkm/application/submit`).set(auth(owner.accessToken)),
+    ])
+    expect(submissions.map((response) => response.status).sort(), databaseErrors.join('\n')).toEqual([200, 409])
+    expectCode(submissions.find((response) => response.status === 409)!, 409, 'APPLICATION_LOCKED')
     const pending = await request(app).get(`${api}/umkm/application`).set(auth(owner.accessToken)).expect(200)
     expect(pending.body.data).toMatchObject({ status: 'PENDING', storefrontPhotoUrl: imageUrl })
     expectCode(await request(app).patch(`${api}/umkm/application`).set(auth(owner.accessToken)).send({ businessType: 'Warung makan' }), 409, 'APPLICATION_LOCKED')
@@ -386,5 +395,21 @@ describe.sequential('API + real SQL database: isolated cross-role core journey',
     await request(app).patch(`${api}/admin/users/${customer.user.id}/status`).set(auth(adminToken)).send({ status: 'SUSPENDED' }).expect(200)
     expectCode(await request(app).get(`${api}/auth/me`).set(auth(customer.accessToken)), 403, 'ACCOUNT_SUSPENDED')
     expectCode(await request(app).post(`${api}/auth/login`).send({ email: customerInput.email, password }), 403, 'ACCOUNT_SUSPENDED')
+  })
+
+  it('16 authenticates seeded demo roles after repeated setup without duplicating accounts', async () => {
+    // Optional for manual integration runs; the local QA runner always supplies it.
+    if (!process.env.LAPERU_DEMO_CREDENTIALS) return
+    const accounts: Array<{ email: string; password: string; role: string }> = JSON.parse(await readFile(process.env.LAPERU_DEMO_CREDENTIALS, 'utf8'))
+    expect(accounts.map((account) => account.role).sort()).toEqual(['CUSTOMER', 'UMKM'])
+    for (const account of accounts) {
+      const response = await request(app).post(`${api}/auth/login`).send({ email: account.email, password: account.password })
+      expect(response.status).toBe(200)
+      expect(response.body.data.user).toMatchObject({ role: account.role, status: 'ACTIVE' })
+      const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [account.email])
+      expect(rows).toHaveLength(1)
+      const endpoint = account.role === 'CUSTOMER' ? '/customer/favorites' : '/umkm/menus'
+      await request(app).get(api + endpoint).set(auth(response.body.data.accessToken)).expect(200)
+    }
   })
 })

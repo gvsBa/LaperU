@@ -46,7 +46,8 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
 })
 
-app.use('/api/v1/auth', authLimiter, authRouter)
+app.use(['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/recovery-codes', '/api/v1/auth/reset-password', '/api/v1/auth/change-password'], authLimiter)
+app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/warungs', publicWarungRouter)
 app.use('/api/v1/meta', metaRouter)
 app.use('/api/v1/customer', customerRouter)

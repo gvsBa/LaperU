@@ -8,10 +8,7 @@ function TopBar() {
           <span><Icon name="store" size={15} /> Temukan kuliner terbaik di sekitar kampus</span>
           <span><Icon name="mapPin" size={15} /> Telkom University, Bandung</span>
         </div>
-        <div className="topbar__socials" aria-label="Media sosial LaperU">
-          <a href="#" aria-label="Twitter"><Icon name="twitter" size={13} /></a>
-          <a href="#" aria-label="Instagram"><Icon name="instagram" size={13} /></a>
-        </div>
+        <span className="topbar__socials">Referensi lokal · tanpa layanan pesan antar</span>
       </div>
     </div>
   )

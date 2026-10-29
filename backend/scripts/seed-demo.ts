@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type { RowDataPacket } from 'mysql2/promise'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
 import { env } from '../src/config/env.js'
 import { pool } from '../src/db/pool.js'
 
@@ -12,16 +13,24 @@ if (!process.argv.includes('--local-demo') || env.NODE_ENV === 'production'
   || !/^\/laperu(?:_test_[a-zA-Z0-9_]+)?$/.test(database.pathname)) {
   throw new Error('Demo seed hanya untuk database lokal laperu/laperu_test_* dengan flag --local-demo.')
 }
-const credentialPath = fileURLToPath(new URL('../.demo-accounts.local.json', import.meta.url))
+// The disposable QA instance must never read or replace real demo credentials.
+const credentialPath = env.NODE_ENV === 'test' && process.env.LAPERU_DEMO_CREDENTIALS
+  ? process.env.LAPERU_DEMO_CREDENTIALS
+  : fileURLToPath(new URL('../.demo-accounts.local.json', import.meta.url))
 type DemoAccount = { email: string; password: string; fullName: string; role: 'CUSTOMER' | 'UMKM' }
 let accounts: DemoAccount[]
 try {
-  accounts = JSON.parse(await readFile(credentialPath, 'utf8')) as DemoAccount[]
-  if (!Array.isArray(accounts) || accounts.length !== 2 || accounts.some((item) =>
-    !['CUSTOMER', 'UMKM'].includes(item.role) || !item.email?.endsWith('.demo@laperu.local')
-    || typeof item.password !== 'string' || item.password.length < 12 || !item.fullName?.startsWith('Demo '))) {
+  const parsed = z.array(z.object({
+    role: z.enum(['CUSTOMER', 'UMKM']),
+    email: z.email().max(190).endsWith('.demo@laperu.local'),
+    password: z.string().min(12).refine((value) => Buffer.byteLength(value, 'utf8') <= 72),
+    fullName: z.string().min(6).max(120).startsWith('Demo '),
+  })).length(2).safeParse(JSON.parse(await readFile(credentialPath, 'utf8')))
+  if (!parsed.success || new Set(parsed.data.map((item) => item.role)).size !== 2
+    || new Set(parsed.data.map((item) => item.email)).size !== 2) {
     throw new Error('Format file akun demo tidak valid. Tidak mengubah database.')
   }
+  accounts = parsed.data
 } catch (error) {
   if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error
   accounts = [
@@ -63,7 +72,7 @@ try {
       [randomUUID(), profileId, 'DATA DEMO: disiapkan seed lokal, bukan hasil verifikasi usaha nyata.'],
     )
     await connection.execute(
-      "INSERT INTO warungs (id, umkm_profile_id, category_id, name, slug, description, address, price_min, price_max, status_override, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, 10000, 25000, 'OPEN', 'APPROVED')",
+      "INSERT INTO warungs (id, umkm_profile_id, category_id, name, slug, description, address, price_min, price_max, status_override, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, 5000, 18000, 'OPEN', 'APPROVED')",
       [warungId, profileId, categories[0].id, 'Demo Warung Mahasiswa', 'demo-warung-mahasiswa',
         'DATA FIKTIF untuk presentasi dan pengujian. Bukan rekomendasi tempat makan nyata.',
         'Area Telkom University — alamat fiktif untuk demo'],
@@ -76,7 +85,9 @@ try {
     )
   }
   await connection.commit()
-  console.log('Data demo lokal siap. Akun/password ada di backend/.demo-accounts.local.json (tidak masuk Git). Admin tetap menggunakan akun yang sudah ada.')
+  console.log(env.NODE_ENV === 'test' && process.env.LAPERU_DEMO_CREDENTIALS
+    ? 'Data demo QA siap. Kredensial tersimpan hanya pada direktori sementara QA.'
+    : 'Data demo lokal siap. Akun/password ada di backend/.demo-accounts.local.json (tidak masuk Git). Admin tetap menggunakan akun yang sudah ada.')
 } catch (error) {
   await connection.rollback()
   throw error
